@@ -1,13 +1,16 @@
-import { prisma } from '../utils/db';
-import { logger } from '../utils/logger';
-export const recommendationService = {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.recommendationService = void 0;
+const db_1 = require("../utils/db");
+const logger_1 = require("../utils/logger");
+exports.recommendationService = {
     /**
      * Generates a "Trending Score" for rooms based on participants and activity.
      * This is a simplified version of a collaborative filtering / ML ranking model.
      */
     async getTrendingRooms(limit = 10) {
         try {
-            const rooms = await prisma.room.findMany({
+            const rooms = await db_1.prisma.room.findMany({
                 where: { status: 'ACTIVE' },
                 include: {
                     _count: {
@@ -33,7 +36,7 @@ export const recommendationService = {
             return scoredRooms.sort((a, b) => b.trendingScore - a.trendingScore).slice(0, limit);
         }
         catch (error) {
-            logger.error(`Error calculating recommendations: ${error}`);
+            logger_1.logger.error(`Error calculating recommendations: ${error}`);
             return [];
         }
     },
@@ -41,7 +44,7 @@ export const recommendationService = {
      * Personalized recommendations based on user's past room history categories.
      */
     async getPersonalizedRooms(userId) {
-        logger.info(`Fetching personalized AI recommendations for user ${userId}`);
+        logger_1.logger.info(`Fetching personalized AI recommendations for user ${userId}`);
         // Future Implementation:
         // 1. Query user's past joined rooms and extract dominant topics/tags.
         // 2. Vector search (e.g., Pinecone/pgvector) for active rooms matching those interest vectors.

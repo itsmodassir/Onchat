@@ -1,16 +1,20 @@
-import { Kafka } from 'kafkajs';
-import { logger } from './logger';
-import dotenv from 'dotenv';
-dotenv.config();
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.KAFKA_TOPICS = exports.kafkaBus = void 0;
+const kafkajs_1 = require("kafkajs");
+const logger_1 = require("./logger");
+const dotenv_1 = __importDefault(require("dotenv"));
+dotenv_1.default.config();
 const KAFKA_BROKERS = process.env.KAFKA_BROKERS ? process.env.KAFKA_BROKERS.split(',') : ['localhost:9092'];
 const CLIENT_ID = 'onchat-server';
 class KafkaEventBus {
-    kafka;
-    producer;
-    consumers = new Map();
-    isConnected = false;
     constructor() {
-        this.kafka = new Kafka({
+        this.consumers = new Map();
+        this.isConnected = false;
+        this.kafka = new kafkajs_1.Kafka({
             clientId: CLIENT_ID,
             brokers: KAFKA_BROKERS,
         });
@@ -22,15 +26,15 @@ class KafkaEventBus {
         try {
             await this.producer.connect();
             this.isConnected = true;
-            logger.info('Kafka producer connected successfully.');
+            logger_1.logger.info('Kafka producer connected successfully.');
         }
         catch (error) {
-            logger.error(`Failed to connect Kafka producer: ${error}`);
+            logger_1.logger.error(`Failed to connect Kafka producer: ${error}`);
         }
     }
     async publish(topic, event) {
         if (!this.isConnected) {
-            logger.warn('Kafka producer not connected. Attempting to connect...');
+            logger_1.logger.warn('Kafka producer not connected. Attempting to connect...');
             await this.connect();
         }
         try {
@@ -38,10 +42,10 @@ class KafkaEventBus {
                 topic,
                 messages: [{ value: JSON.stringify(event) }],
             });
-            logger.info(`Message published to Kafka topic: ${topic}`);
+            logger_1.logger.info(`Message published to Kafka topic: ${topic}`);
         }
         catch (error) {
-            logger.error(`Failed to publish message to Kafka topic ${topic}: ${error}`);
+            logger_1.logger.error(`Failed to publish message to Kafka topic ${topic}: ${error}`);
         }
     }
     async subscribe(topic, groupId, callback) {
@@ -57,22 +61,22 @@ class KafkaEventBus {
                             await callback(event);
                         }
                         catch (err) {
-                            logger.error(`Error processing Kafka message on topic ${topic}: ${err}`);
+                            logger_1.logger.error(`Error processing Kafka message on topic ${topic}: ${err}`);
                         }
                     }
                 },
             });
             this.consumers.set(`${groupId}-${topic}`, consumer);
-            logger.info(`Kafka consumer connected for topic: ${topic}, group: ${groupId}`);
+            logger_1.logger.info(`Kafka consumer connected for topic: ${topic}, group: ${groupId}`);
         }
         catch (error) {
-            logger.error(`Failed to start Kafka consumer for topic ${topic}: ${error}`);
+            logger_1.logger.error(`Failed to start Kafka consumer for topic ${topic}: ${error}`);
         }
     }
 }
-export const kafkaBus = new KafkaEventBus();
+exports.kafkaBus = new KafkaEventBus();
 // Standard Kafka Topics
-export const KAFKA_TOPICS = {
+exports.KAFKA_TOPICS = {
     USER_JOINED_ROOM: 'events.room.user_joined',
     MESSAGE_SENT: 'events.chat.message_sent',
     GIFT_SENT: 'events.payment.gift_sent',

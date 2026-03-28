@@ -1,11 +1,14 @@
-import { paymentService } from '../services/payment.service';
-import { v4 as uuidv4 } from 'uuid';
-export const paymentController = {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.paymentController = void 0;
+const payment_service_1 = require("../services/payment.service");
+const uuid_1 = require("uuid");
+exports.paymentController = {
     async addCoins(req, res) {
         try {
             const { amount } = req.body;
-            const idempotencyKey = req.headers['x-idempotency-key'] || uuidv4();
-            const user = await paymentService.addCoins(req.user.userId, amount, idempotencyKey);
+            const idempotencyKey = req.headers['x-idempotency-key'] || (0, uuid_1.v4)();
+            const user = await payment_service_1.paymentService.addCoins(req.user.userId, amount, idempotencyKey);
             res.json(user);
         }
         catch (error) {
@@ -15,8 +18,8 @@ export const paymentController = {
     async sendGift(req, res) {
         try {
             const { toUserId, amount } = req.body;
-            const idempotencyKey = req.headers['x-idempotency-key'] || uuidv4();
-            const result = await paymentService.sendGift(req.user.userId, toUserId, amount, idempotencyKey);
+            const idempotencyKey = req.headers['x-idempotency-key'] || (0, uuid_1.v4)();
+            const result = await payment_service_1.paymentService.sendGift(req.user.userId, toUserId, amount, idempotencyKey);
             res.json(result);
         }
         catch (error) {

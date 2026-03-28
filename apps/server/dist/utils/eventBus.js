@@ -1,14 +1,17 @@
-import Redis from 'ioredis';
-import dotenv from 'dotenv';
-dotenv.config();
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.EVENTS = exports.eventBus = void 0;
+const ioredis_1 = __importDefault(require("ioredis"));
+const dotenv_1 = __importDefault(require("dotenv"));
+dotenv_1.default.config();
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 class EventBus {
-    publisher;
-    subscriber;
-    handlers;
     constructor() {
-        this.publisher = new Redis(REDIS_URL);
-        this.subscriber = new Redis(REDIS_URL);
+        this.publisher = new ioredis_1.default(REDIS_URL);
+        this.subscriber = new ioredis_1.default(REDIS_URL);
         this.handlers = new Map();
         this.subscriber.on('message', (channel, message) => {
             const callbacks = this.handlers.get(channel);
@@ -34,9 +37,9 @@ class EventBus {
         this.handlers.get(channel)?.push(callback);
     }
 }
-export const eventBus = new EventBus();
+exports.eventBus = new EventBus();
 // Standard Event Names
-export const EVENTS = {
+exports.EVENTS = {
     USER_JOINED_ROOM: 'USER_JOINED_ROOM',
     MESSAGE_SENT: 'MESSAGE_SENT',
     GIFT_SENT: 'GIFT_SENT',

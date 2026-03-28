@@ -1,6 +1,9 @@
-import { prisma } from '../utils/db';
-import { eventBus, EVENTS } from '../utils/eventBus';
-import { logger } from '../utils/logger';
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.roomService = void 0;
+const db_1 = require("../utils/db");
+const eventBus_1 = require("../utils/eventBus");
+const logger_1 = require("../utils/logger");
 const RoomStatus = {
     ACTIVE: 'ACTIVE',
     INACTIVE: 'INACTIVE',
@@ -10,9 +13,9 @@ const Role = {
     LISTENER: 'LISTENER',
     SPEAKER: 'SPEAKER',
 };
-export const roomService = {
+exports.roomService = {
     async createRoom(title, hostId) {
-        const room = await prisma.room.create({
+        const room = await db_1.prisma.room.create({
             data: {
                 title,
                 hostId,
@@ -28,13 +31,13 @@ export const roomService = {
                 participants: true,
             },
         });
-        logger.info(`Room created: ${room.id} by host: ${hostId}`);
-        eventBus.publish(EVENTS.ROOM_CREATED, { roomId: room.id, hostId });
+        logger_1.logger.info(`Room created: ${room.id} by host: ${hostId}`);
+        eventBus_1.eventBus.publish(eventBus_1.EVENTS.ROOM_CREATED, { roomId: room.id, hostId });
         return room;
     },
     async joinRoom(roomId, userId) {
         // Check if player is already a participant
-        const existingParticipant = await prisma.participant.findUnique({
+        const existingParticipant = await db_1.prisma.participant.findUnique({
             where: {
                 userId_roomId: { userId, roomId },
             },
@@ -42,26 +45,26 @@ export const roomService = {
         if (existingParticipant) {
             return existingParticipant;
         }
-        const participant = await prisma.participant.create({
+        const participant = await db_1.prisma.participant.create({
             data: {
                 roomId,
                 userId,
                 role: Role.LISTENER,
             },
         });
-        logger.info(`User: ${userId} joined room: ${roomId}`);
-        eventBus.publish(EVENTS.USER_JOINED_ROOM, { roomId, userId });
+        logger_1.logger.info(`User: ${userId} joined room: ${roomId}`);
+        eventBus_1.eventBus.publish(eventBus_1.EVENTS.USER_JOINED_ROOM, { roomId, userId });
         return participant;
     },
     async leaveRoom(roomId, userId) {
-        return await prisma.participant.delete({
+        return await db_1.prisma.participant.delete({
             where: {
                 userId_roomId: { userId, roomId },
             },
         });
     },
     async getRooms() {
-        return await prisma.room.findMany({
+        return await db_1.prisma.room.findMany({
             where: { status: RoomStatus.ACTIVE },
             include: {
                 host: {
@@ -74,7 +77,7 @@ export const roomService = {
         });
     },
     async getRoomById(roomId) {
-        return await prisma.room.findUnique({
+        return await db_1.prisma.room.findUnique({
             where: { id: roomId },
             include: {
                 host: true,

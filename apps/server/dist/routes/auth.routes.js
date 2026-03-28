@@ -1,8 +1,10 @@
-import { Router } from 'express';
-import { authController } from '../controllers/auth.controller';
-import { authMiddleware } from '../middleware/auth.middleware';
-const router = Router();
-router.post('/signup', authController.signup);
-router.post('/login', authController.login);
-router.get('/me', authMiddleware, authController.me);
-export default router;
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const auth_controller_1 = require("../controllers/auth.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const router = (0, express_1.Router)();
+router.post('/signup', auth_controller_1.authController.signup);
+router.post('/login', auth_controller_1.authController.login);
+router.get('/me', auth_middleware_1.authMiddleware, auth_controller_1.authController.me);
+exports.default = router;
