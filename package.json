@@ -1,0 +1,31 @@
+{
+  "name": "onchat",
+  "version": "1.0.0",
+  "description": "",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "test": "turbo test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itsmodassir/Onchat.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/itsmodassir/Onchat/issues"
+  },
+  "homepage": "https://github.com/itsmodassir/Onchat#readme",
+  "devDependencies": {
+    "turbo": "^2.8.21"
+  }
+}
