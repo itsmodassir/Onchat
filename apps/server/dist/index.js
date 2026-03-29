@@ -13,8 +13,14 @@ const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const room_routes_1 = __importDefault(require("./routes/room.routes"));
+const social_routes_1 = __importDefault(require("./routes/social.routes"));
+const shop_routes_1 = __importDefault(require("./routes/shop.routes"));
+const admin_routes_1 = __importDefault(require("./routes/admin.routes"));
 const chat_service_1 = require("./services/chat.service");
 const payment_routes_1 = __importDefault(require("./routes/payment.routes"));
+const gamification_routes_1 = __importDefault(require("./routes/gamification.routes"));
+const moderation_routes_1 = __importDefault(require("./routes/moderation.routes"));
+const monetization_routes_1 = __importDefault(require("./routes/monetization.routes"));
 const redis_adapter_1 = require("@socket.io/redis-adapter");
 const ioredis_1 = __importDefault(require("ioredis"));
 dotenv_1.default.config();
@@ -23,6 +29,7 @@ const pubClient = new ioredis_1.default(REDIS_URL);
 const subClient = pubClient.duplicate();
 const app = (0, express_1.default)();
 exports.app = app;
+app.set('trust proxy', 1);
 const server = http_1.default.createServer(app);
 const io = new socket_io_1.Server(server, {
     cors: {
@@ -46,11 +53,39 @@ app.use('/api', limiter); // Apply rate limiting to all /api routes
 app.use('/api/auth', auth_routes_1.default);
 app.use('/api/rooms', room_routes_1.default);
 app.use('/api/payments', payment_routes_1.default);
+app.use('/api/social', social_routes_1.default);
+app.use('/api/shop', shop_routes_1.default);
+app.use('/api/admin', admin_routes_1.default);
+app.use('/api/game', gamification_routes_1.default);
+app.use('/api/moderation', moderation_routes_1.default);
+app.use('/api/monetization', monetization_routes_1.default);
+// Root route for visual confirmation
+app.get('/', (req, res) => {
+    res.send(`
+    <div style="background: #0f172a; color: #818cf8; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: sans-serif; text-align: center;">
+      <h1 style="font-size: 3rem; margin-bottom: 0;">Onchat Backend is LIVE 🎙️</h1>
+      <p style="color: #94a3b8; font-size: 1.2rem;">Startup-Grade Social Audio Engine</p>
+      <div style="margin-top: 20px; padding: 15px 30px; border: 1px solid #334155; border-radius: 12px; background: #1e293b;">
+        Server Status: <span style="color: #22c55e; font-weight: bold;">ONLINE</span>
+      </div>
+      <p style="margin-top: 40px; color: #475569; font-size: 0.9rem;">Connected to: 13.126.135.253</p>
+    </div>
+  `);
+});
 // Health check
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+// Global Error Handler
+app.use((err, req, res, next) => {
+    console.error('SERVER_ERROR:', err);
+    res.status(err.status || 500).json({
+        error: err.message || 'Internal Server Error',
+        stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+    });
+});
 // Socket.io connection logic
+chat_service_1.chatService.init(io);
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
     chat_service_1.chatService.handleSocket(io, socket);

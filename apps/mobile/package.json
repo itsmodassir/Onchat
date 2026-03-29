@@ -4,29 +4,36 @@
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web"
   },
   "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.15.8",
     "@react-navigation/native": "^7.2.1",
     "@react-navigation/stack": "^7.8.8",
     "agora-rn-uikit": "^5.0.2",
     "axios": "^1.14.0",
     "expo": "55.0.10-canary-20260327-0789fbc",
+    "expo-device": "55.0.11-canary-20260327-0789fbc",
+    "expo-linear-gradient": "55.0.10-canary-20260327-0789fbc",
+    "expo-notifications": "55.0.15-canary-20260327-0789fbc",
     "expo-status-bar": "55.0.5-canary-20260327-0789fbc",
+    "expo-system-ui": "^55.0.12-canary-20260327-0789fbc",
     "lucide-react-native": "^1.7.0",
-    "react": "19.2.0",
+    "react": "19.2.4",
     "react-native": "0.83.4",
     "react-native-agora": "^4.6.2",
-    "react-native-safe-area-context": "^5.7.0",
-    "react-native-screens": "^4.24.0",
+    "react-native-safe-area-context": "~5.6.2",
+    "react-native-screens": "~4.23.0",
     "socket.io-client": "^4.8.3",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "patch-package": "^8.0.1",
+    "postinstall-postinstall": "^2.1.0",
     "typescript": "~5.9.2"
   },
   "private": true

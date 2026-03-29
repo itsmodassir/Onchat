@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const social_controller_1 = require("../controllers/social.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const router = (0, express_1.Router)();
+router.use(auth_middleware_1.authMiddleware);
+router.post('/follow', social_controller_1.socialController.follow);
+router.delete('/unfollow/:userId', social_controller_1.socialController.unfollow);
+router.get('/followers/:userId', social_controller_1.socialController.getFollowers);
+router.get('/following/:userId', social_controller_1.socialController.getFollowing);
+router.get('/friends', social_controller_1.socialController.getFriends);
+exports.default = router;

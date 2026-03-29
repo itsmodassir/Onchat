@@ -14,11 +14,15 @@ const Role = {
     SPEAKER: 'SPEAKER',
 };
 exports.roomService = {
-    async createRoom(title, hostId) {
+    async createRoom(title, hostId, requiresPermission = false, isScheduled = false, scheduledAt) {
         const room = await db_1.prisma.room.create({
             data: {
                 title,
                 hostId,
+                requiresPermission,
+                isScheduled,
+                scheduledAt: scheduledAt ? new Date(scheduledAt) : null,
+                status: isScheduled ? 'INACTIVE' : 'ACTIVE',
                 participants: {
                     create: {
                         userId: hostId,
@@ -31,11 +35,19 @@ exports.roomService = {
                 participants: true,
             },
         });
-        logger_1.logger.info(`Room created: ${room.id} by host: ${hostId}`);
-        eventBus_1.eventBus.publish(eventBus_1.EVENTS.ROOM_CREATED, { roomId: room.id, hostId });
+        logger_1.logger.info(`Room created: ${room.id} (${isScheduled ? 'SCHEDULED' : 'LIVE'}) by host: ${hostId}`);
+        if (!isScheduled) {
+            eventBus_1.eventBus.publish(eventBus_1.EVENTS.ROOM_CREATED, room);
+        }
         return room;
     },
     async joinRoom(roomId, userId) {
+        const room = await db_1.prisma.room.findUnique({
+            where: { id: roomId },
+            select: { hostId: true, requiresPermission: true },
+        });
+        if (!room)
+            throw new Error('Room not found');
         // Check if player is already a participant
         const existingParticipant = await db_1.prisma.participant.findUnique({
             where: {
@@ -45,16 +57,41 @@ exports.roomService = {
         if (existingParticipant) {
             return existingParticipant;
         }
+        const status = (room.requiresPermission && room.hostId !== userId) ? 'PENDING' : 'JOINED';
         const participant = await db_1.prisma.participant.create({
             data: {
                 roomId,
                 userId,
-                role: Role.LISTENER,
+                role: (room.hostId === userId ? Role.HOST : Role.LISTENER),
+                status: status,
             },
+            include: {
+                user: { select: { id: true, name: true, avatar: true, shortId: true } }
+            }
         });
-        logger_1.logger.info(`User: ${userId} joined room: ${roomId}`);
+        logger_1.logger.info(`User: ${userId} requested/joined room: ${roomId} with status: ${status}`);
+        if (status === 'JOINED') {
+            eventBus_1.eventBus.publish(eventBus_1.EVENTS.USER_JOINED_ROOM, { roomId, userId });
+        }
+        else {
+            // Notify host of pending request
+            eventBus_1.eventBus.publish('USER_REQUESTED_JOIN', { roomId, userId, user: participant.user });
+        }
+        return participant;
+    },
+    async approveJoin(roomId, userId) {
+        const participant = await db_1.prisma.participant.update({
+            where: { userId_roomId: { userId, roomId } },
+            data: { status: 'JOINED' },
+            include: { user: true }
+        });
         eventBus_1.eventBus.publish(eventBus_1.EVENTS.USER_JOINED_ROOM, { roomId, userId });
         return participant;
+    },
+    async rejectJoin(roomId, userId) {
+        return await db_1.prisma.participant.delete({
+            where: { userId_roomId: { userId, roomId } },
+        });
     },
     async leaveRoom(roomId, userId) {
         return await db_1.prisma.participant.delete({
@@ -97,5 +134,33 @@ exports.roomService = {
                 },
             },
         });
+    },
+    async getUpcomingRooms() {
+        return await db_1.prisma.room.findMany({
+            where: {
+                isScheduled: true,
+                status: 'INACTIVE',
+                scheduledAt: { gt: new Date() },
+            },
+            include: {
+                host: { select: { name: true, avatar: true } },
+                _count: { select: { participants: true } },
+            },
+            orderBy: { scheduledAt: 'asc' },
+        });
+    },
+    async startScheduledRoom(roomId, hostId) {
+        const room = await db_1.prisma.room.findUnique({ where: { id: roomId } });
+        if (!room)
+            throw new Error('Room not found');
+        if (room.hostId !== hostId)
+            throw new Error('Only the host can start this room');
+        const updatedRoom = await db_1.prisma.room.update({
+            where: { id: roomId },
+            data: { status: 'ACTIVE', isScheduled: false },
+            include: { host: true, participants: true },
+        });
+        eventBus_1.eventBus.publish(eventBus_1.EVENTS.ROOM_CREATED, updatedRoom);
+        return updatedRoom;
     },
 };

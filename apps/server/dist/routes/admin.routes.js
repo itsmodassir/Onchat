@@ -1,0 +1,13 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const admin_controller_1 = require("../controllers/admin.controller");
+const auth_middleware_1 = require("../middleware/auth.middleware");
+const router = (0, express_1.Router)();
+router.use(auth_middleware_1.authMiddleware, auth_middleware_1.adminMiddleware);
+router.get('/users', admin_controller_1.adminController.getUsers);
+router.get('/stats', admin_controller_1.adminController.getStats);
+router.patch('/users/:userId/balance', admin_controller_1.adminController.updateBalance);
+router.post('/users/:userId/add-coins', admin_controller_1.adminController.addCoins);
+router.patch('/users/:userId/reseller', admin_controller_1.adminController.toggleReseller);
+exports.default = router;

@@ -3,6 +3,7 @@
 
 generator client {
   provider = "prisma-client-js"
+  output   = "../node_modules/@prisma/client"
 }
 
 datasource db {
@@ -10,29 +11,128 @@ datasource db {
 }
 
 model User {
-  id            String         @id @default(uuid())
-  name          String?
-  email         String         @unique
-  password      String?
-  coins         Int            @default(0)
-  rooms         Room[]         @relation("HostRooms")
-  participants  Participant[]
-  messages      Message[]
-  transactions Transaction[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id                String         @id @default(uuid())
+  shortId           String         @unique
+  name              String?
+  email             String         @unique
+  password          String?
+  isAdmin           Boolean        @default(false)
+  isReseller        Boolean        @default(false)
+  coins             Int            @default(0)
+  diamonds          Float          @default(0)
+  crystals          Int            @default(0)
+  level             Int            @default(1)
+  exp               Int            @default(0)
+  svipLevel         Int            @default(0)
+  aristocracyLevel  Int            @default(0)
+  bio               String?
+  avatar            String?
+  reputationScore   Float          @default(1.0)
+  isBanned          Boolean        @default(false)
+  bannedUntil       DateTime?
+  rooms             Room[]         @relation("HostRooms")
+  participants      Participant[]
+  messages          Message[]
+  transactions      Transaction[]
+  moments           Moment[]
+  followers         Follow[]       @relation("Following")
+  following         Follow[]       @relation("Follower")
+  familyId          String?
+  family            Family?        @relation(fields: [familyId], references: [id])
+  assets            UserAsset[]
+  badges            Badge[]
+  dailyReward       DailyReward?
+  reports           Report[]       @relation("ReportedUser")
+  reportsMade       Report[]       @relation("Reporter")
+  withdrawalRequests WithdrawalRequest[]
+  interests         String[]       @default([])
+  expoPushToken     String?
+  
+  // Tier 3: Profile Enhancements
+  asUser1           Couple[]       @relation("User1Couple")
+  asUser2           Couple[]       @relation("User2Couple")
+  ownedAgency       Agency?        @relation("AgencyOwner")
+  agencyMembership  AgencyMember?
+  griddyBets        GriddyBet[]
+
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String
+  followingId String
+  follower    User     @relation("Follower", fields: [followerId], references: [id])
+  following   User     @relation("Following", fields: [followingId], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+}
+
+model Family {
+  id          String         @id @default(uuid())
+  name        String
+  description String?
+  image       String?
+  creatorId   String
+  level       Int            @default(1)
+  exp         Int            @default(0)
+  members     User[]
+  rooms       FamilyRoom[]
+  tasks       FamilyTask[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+model FamilyRoom {
+  id        String   @id @default(uuid())
+  familyId  String
+  roomId    String
+  family    Family   @relation(fields: [familyId], references: [id])
+  room      Room     @relation(fields: [roomId], references: [id])
+
+  @@unique([familyId, roomId])
+}
+
+model FamilyTask {
+  id          String   @id @default(uuid())
+  familyId    String
+  title       String
+  rewardExp   Int
+  completed   Boolean  @default(false)
+  family      Family   @relation(fields: [familyId], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+model Moment {
+  id        String   @id @default(uuid())
+  content   String
+  image     String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Room {
-  id           String        @id @default(uuid())
-  title        String
-  hostId       String
-  host         User          @relation("HostRooms", fields: [hostId], references: [id])
-  status       RoomStatus    @default(ACTIVE)
-  participants Participant[]
-  messages     Message[]
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id                 String        @id @default(uuid())
+  title              String
+  category           String        @default("HOT")
+  tags               String?
+  image              String?
+  hostId             String
+  requiresPermission Boolean       @default(false)
+  isScheduled        Boolean       @default(false)
+  scheduledAt        DateTime?
+  host               User          @relation("HostRooms", fields: [hostId], references: [id])
+  status             RoomStatus    @default(ACTIVE)
+  participants       Participant[]
+  messages           Message[]
+  familyRooms        FamilyRoom[]
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
   @@index([hostId])
 }
@@ -47,6 +147,7 @@ model Participant {
   userId    String
   roomId    String
   role      Role     @default(LISTENER)
+  status    ParticipantStatus @default(JOINED)
   user      User     @relation(fields: [userId], references: [id])
   room      Room     @relation(fields: [roomId], references: [id])
   createdAt DateTime @default(now())
@@ -56,6 +157,12 @@ model Participant {
   @@index([userId])
 }
 
+enum ParticipantStatus {
+  PENDING
+  JOINED
+  REJECTED
+}
+
 enum Role {
   HOST
   SPEAKER
@@ -63,24 +170,67 @@ enum Role {
 }
 
 model Message {
-  id        String   @id @default(uuid())
+  id        String            @id @default(uuid())
   content   String
   userId    String
   roomId    String
-  user      User     @relation(fields: [userId], references: [id])
-  room      Room     @relation(fields: [roomId], references: [id])
-  createdAt DateTime @default(now())
+  isHidden  Boolean           @default(false)
+  user      User              @relation(fields: [userId], references: [id])
+  room      Room              @relation(fields: [roomId], references: [id])
+  reactions MessageReaction[]
+  createdAt DateTime          @default(now())
 
   @@index([roomId])
+  @@index([userId])
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  emoji     String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+}
+
+model StoreItem {
+  id          String    @id @default(uuid())
+  name        String
+  image       String
+  price       Int
+  currency    Currency  @default(COIN)
+  category    String    // HEADWEAR, MOUNT, BUBBLE, FLOAT
+  duration    Int       @default(30) // in days
+  assets      UserAsset[]
+}
+
+enum Currency {
+  COIN
+  DIAMOND
+  CRYSTAL
+}
+
+model UserAsset {
+  id          String    @id @default(uuid())
+  userId      String
+  itemId      String
+  isEquipped  Boolean   @default(false)
+  expiresAt   DateTime?
+  user        User      @relation(fields: [userId], references: [id])
+  item        StoreItem @relation(fields: [itemId], references: [id])
+
   @@index([userId])
 }
 
 model Transaction {
   id        String          @id @default(uuid())
   userId    String
-  amount    Int
+  amount    Float
   type      TransactionType
-  status    String          @default("PENDING")
+  status    String          @default("COMPLETED")
   user      User            @relation(fields: [userId], references: [id])
   createdAt DateTime        @default(now())
 
@@ -88,7 +238,118 @@ model Transaction {
 }
 
 enum TransactionType {
-  PURCHASE
+  RECHARGE
+  EXCHANGE
   GIFT_SEND
   GIFT_RECEIVE
+  PURCHASE
+  WITHDRAWAL
+}
+
+model Otp {
+  id        String   @id @default(uuid())
+  email     String
+  code      String
+  purpose   String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+}
+
+model Badge {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String   // FIRST_ROOM, LEVEL_10, TOP_GIFTER, etc.
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  earnedAt  DateTime @default(now())
+
+  @@unique([userId, type])
+  @@index([userId])
+}
+
+model DailyReward {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  streak       Int      @default(0)
+  lastClaimedAt DateTime?
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Report {
+  id           String   @id @default(uuid())
+  reporterId   String
+  targetUserId String
+  reason       String
+  status       String   @default("PENDING") // PENDING, REVIEWED, DISMISSED
+  reporter     User     @relation("Reporter", fields: [reporterId], references: [id])
+  target       User     @relation("ReportedUser", fields: [targetUserId], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([targetUserId])
+  @@index([status])
+}
+
+model WithdrawalRequest {
+  id             String   @id @default(uuid())
+  userId         String
+  amount         Float
+  status         String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  paymentMethod  String
+  paymentDetails String
+  user           User     @relation(fields: [userId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+}
+// Tier 3: Profile & Games
+model Couple {
+  id          String   @id @default(uuid())
+  user1Id     String
+  user2Id     String
+  points      Int      @default(0)
+  level       Int      @default(1)
+  user1       User     @relation("User1Couple", fields: [user1Id], references: [id])
+  user2       User     @relation("User2Couple", fields: [user2Id], references: [id])
+  status      String   @default("ACCEPTED") // PENDING, ACCEPTED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([user1Id, user2Id])
+}
+
+model Agency {
+  id          String   @id @default(uuid())
+  name        String
+  ownerId     String   @unique
+  owner       User     @relation("AgencyOwner", fields: [ownerId], references: [id])
+  description String?
+  logo        String?
+  members     AgencyMember[]
+  commissionRate Float @default(0.1) // 10%
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AgencyMember {
+  id          String   @id @default(uuid())
+  agencyId    String
+  userId      String   @unique
+  role        String   @default("HOST") // HOST, MANAGER
+  agency      Agency   @relation(fields: [agencyId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
+  joinedAt    DateTime @default(now())
+}
+
+model GriddyBet {
+  id        String   @id @default(uuid())
+  userId    String
+  amount    Int
+  multiplier Float
+  won       Boolean
+  result    Int      // The outcome number/slot
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
 }
