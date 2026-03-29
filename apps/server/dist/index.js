@@ -11,6 +11,7 @@ const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const dotenv_1 = __importDefault(require("dotenv"));
+dotenv_1.default.config();
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const room_routes_1 = __importDefault(require("./routes/room.routes"));
 const social_routes_1 = __importDefault(require("./routes/social.routes"));
@@ -25,9 +26,10 @@ const cp_routes_1 = __importDefault(require("./routes/cp.routes"));
 const agency_routes_1 = __importDefault(require("./routes/agency.routes"));
 const game_routes_1 = __importDefault(require("./routes/game.routes"));
 const reseller_routes_1 = __importDefault(require("./routes/reseller.routes"));
+const storage_routes_1 = __importDefault(require("./routes/storage.routes"));
+const path_1 = __importDefault(require("path"));
 const redis_adapter_1 = require("@socket.io/redis-adapter");
 const ioredis_1 = __importDefault(require("ioredis"));
-dotenv_1.default.config();
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 const pubClient = new ioredis_1.default(REDIS_URL);
 const subClient = pubClient.duplicate();
@@ -67,6 +69,9 @@ app.use('/api/cp', cp_routes_1.default);
 app.use('/api/agency', agency_routes_1.default);
 app.use('/api/luck', game_routes_1.default);
 app.use('/api/reseller', reseller_routes_1.default);
+app.use('/api/storage', storage_routes_1.default);
+// Static Media Serving
+app.use('/uploads', express_1.default.static(path_1.default.join(process.cwd(), 'uploads')));
 // Root route for visual confirmation
 app.get('/', (req, res) => {
     res.send(`

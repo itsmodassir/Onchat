@@ -1,5 +1,7 @@
-
 import { Users, Mic2, PlayCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+const AppLink = (Link as any);
 
 interface Room {
   id: string;
@@ -15,7 +17,7 @@ interface Room {
 
 export const RoomCard = ({ room }: { room: Room }) => {
   return (
-    <div className="group relative glass-card rounded-[2rem] overflow-hidden transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-indigo-500/10 cursor-pointer">
+    <AppLink to={`/room/${room.id}`} className="group relative glass-card rounded-[2rem] overflow-hidden transition-all duration-500 hover:scale-[1.02] hover:shadow-2xl hover:shadow-indigo-500/10 cursor-pointer block">
       {/* Thumbnail / Ambient Background */}
       <div className="aspect-[4/3] relative overflow-hidden bg-slate-800">
         <img 
@@ -76,6 +78,6 @@ export const RoomCard = ({ room }: { room: Room }) => {
           </button>
         </div>
       </div>
-    </div>
+    </AppLink>
   );
 };

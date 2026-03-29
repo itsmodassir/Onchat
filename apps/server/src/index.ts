@@ -5,6 +5,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
+dotenv.config();
+
 import authRoutes from './routes/auth.routes';
 import roomRoutes from './routes/room.routes';
 import socialRoutes from './routes/social.routes';
@@ -24,8 +26,6 @@ import path from 'path';
 
 import { createAdapter } from '@socket.io/redis-adapter';
 import Redis from 'ioredis';
-
-dotenv.config();
 
 const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 const pubClient = new Redis(REDIS_URL);

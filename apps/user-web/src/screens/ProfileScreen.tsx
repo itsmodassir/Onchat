@@ -1,183 +1,225 @@
-
+import { useState, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
+import api from '../utils/api';
 import { 
-  User as UserIcon, 
-  Shield, 
-  Award, 
-  Crown, 
-  ChevronRight, 
-  Mail, 
-  Calendar,
-  Settings,
-  Heart
+  Crown, Gem, Coins, Heart, 
+  ShoppingBag, Briefcase, Flame,
+  Settings, LogOut, Trophy, 
+  ShieldCheck, Camera, Share2, Wallet,
+  ArrowRight
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+
+const AppLink = Link as any;
 
 export const ProfileScreen = () => {
-  const { user } = useStore();
+  const { user, logout, setUser } = useStore();
+  const [cpStatus, setCpStatus] = useState<any>(null);
+  const [agencyStats, setAgencyStats] = useState<any>(null);
 
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-12">
-        <div className="glass-card p-16 rounded-[4rem] text-center max-w-md">
-          <div className="w-20 h-20 bg-indigo-600/10 rounded-3xl flex items-center justify-center mx-auto mb-8">
-            <UserIcon className="w-10 h-10 text-indigo-500" />
-          </div>
-          <h2 className="text-3xl font-black mb-4">Identity Not Found</h2>
-          <p className="text-slate-500 font-medium mb-8">Please establish a secure session to view your identity console.</p>
-          <button className="w-full premium-gradient py-4 rounded-2xl font-black uppercase tracking-widest text-xs">Initialize Login</button>
-        </div>
-      </div>
-    );
-  }
+  const fetchLiveProfile = useCallback(async () => {
+    try {
+      const [userRes, cpRes, agencyRes] = await Promise.all([
+        api.get('/auth/me'),
+        api.get('/cp/status'),
+        api.get('/agency/stats')
+      ]);
+      setUser(userRes.data);
+      setCpStatus(cpRes.data);
+      setAgencyStats(agencyRes.data);
+    } catch (error) {
+      console.error('Failed to sync live profile:', error);
+    }
+  }, [setUser]);
 
-  const level = Math.floor(user.coins / 1000) + 1;
-  const progress = (user.coins % 1000) / 10;
+  useEffect(() => {
+    fetchLiveProfile();
+  }, [fetchLiveProfile]);
+
+  const statsList = [
+    { title: 'Followers', count: user?._count?.followers ?? 0 },
+    { title: 'Level', count: user?.level ?? 1 },
+    { title: 'Following', count: user?._count?.following ?? 0 },
+    { title: 'Rooms', count: user?._count?.rooms ?? 0 },
+  ];
+
+  const menuItems = [
+    { id: '1', title: 'Daily Reward', icon: Flame, color: 'text-orange-500', bg: 'bg-orange-500/10', path: '/daily-reward' },
+    { id: '2', title: 'Leaderboard', icon: Crown, color: 'text-amber-500', bg: 'bg-amber-500/10', path: '/leaderboard' },
+    { id: '3', title: 'Vault Access', icon: Wallet, color: 'text-indigo-500', bg: 'bg-indigo-500/10', path: '/wallet' },
+    { id: '4', title: 'Partner Zone', icon: Heart, color: 'text-rose-500', bg: 'bg-rose-500/10', extra: cpStatus ? `Lv. ${cpStatus.level}` : 'Connect' },
+    { id: '5', title: 'Outfits', icon: ShoppingBag, color: 'text-emerald-500', bg: 'bg-emerald-500/10', path: '/store' },
+    { id: '6', title: 'Creator Studio', icon: Briefcase, color: 'text-indigo-600', bg: 'bg-indigo-600/10', extra: agencyStats?.name || 'Apply', path: '/creator' },
+    { id: '7', title: 'Griddy Luck', icon: Trophy, color: 'text-cyan-500', bg: 'bg-cyan-500/10', path: '/griddy' },
+    { id: '8', title: 'Settings', icon: Settings, color: 'text-slate-500', bg: 'bg-slate-500/10', path: '/settings' },
+  ];
+
+  const handleUpdateAvatar = async () => {
+    const url = prompt('Enter new avatar image URL:', user?.avatar || '');
+    if (!url) return;
+    try {
+      const { data } = await api.patch('/auth/profile', { avatar: url });
+      setUser(data);
+    } catch (error) {
+      alert('Failed to update neural avatar correlation.');
+    }
+  };
+
+  const handleUpdateName = async () => {
+    const newName = prompt('Enter new identifier alias:', user?.name || '');
+    if (!newName) return;
+    try {
+      const { data } = await api.patch('/auth/profile', { name: newName });
+      setUser(data);
+    } catch (error) {
+      alert('Failed to update identifier alias.');
+    }
+  };
 
   return (
-    <div className="p-12 space-y-12 animate-in fade-in duration-700">
-      {/* Profile Header */}
-      <section className="relative">
-        <div className="h-64 rounded-[3rem] overflow-hidden">
-           <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=2000&auto=format&fit=crop" className="w-full h-full object-cover opacity-40" />
-           <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-[#020617]/40 to-transparent" />
-        </div>
+    <div className="max-w-5xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700 p-8">
+      {/* Identity Card */}
+      <section className="glass-card p-12 rounded-[3.5rem] relative overflow-hidden group">
+        <div className="absolute top-0 right-0 w-[40%] h-full bg-indigo-600/5 blur-[100px] pointer-events-none group-hover:bg-indigo-600/10 transition-colors" />
         
-        <div className="absolute -bottom-16 left-16 flex items-end gap-10">
-           <div className="relative">
-              <div className="w-44 h-44 rounded-[3.5rem] overflow-hidden border-8 border-[#020617] shadow-2xl">
-                <img 
-                  src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.shortId}`} 
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="absolute -bottom-2 -right-2 w-14 h-14 bg-indigo-600 rounded-3xl border-4 border-[#020617] flex items-center justify-center shadow-xl">
-                 <Shield className="text-white w-6 h-6" />
-              </div>
-           </div>
-           
-           <div className="pb-6">
-              <div className="flex items-center gap-4 mb-2">
-                <h1 className="text-5xl font-black tracking-tighter">{user.name}</h1>
-                <div className="px-4 py-1.5 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-400 text-[10px] font-black uppercase tracking-widest">
-                  Level {level}
-                </div>
-              </div>
-              <p className="text-slate-500 font-bold uppercase tracking-[0.3em] text-[10px]">@{user.shortId.toUpperCase()}</p>
-           </div>
+        <div className="flex flex-col md:flex-row items-center gap-12 relative z-10">
+          <div className="relative">
+            <motion.div 
+              whileHover={{ scale: 1.05 }}
+              className="w-40 h-40 rounded-[3rem] border-4 border-indigo-500/30 overflow-hidden shadow-2xl relative bg-slate-900"
+            >
+              <img 
+                src={user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.id}`} 
+                alt={user?.name} 
+                className="w-full h-full object-cover"
+              />
+              <button 
+                onClick={handleUpdateAvatar}
+                className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center text-white backdrop-blur-sm"
+              >
+                <Camera className="w-8 h-8" />
+              </button>
+            </motion.div>
+            <div className="absolute -bottom-4 right-4 w-12 h-12 rounded-2xl bg-indigo-600 border-4 border-[#020617] flex items-center justify-center shadow-xl">
+               <ShieldCheck className="w-6 h-6 text-white" />
+            </div>
+          </div>
+
+          <div className="flex-1 text-center md:text-left space-y-6">
+            <div className="space-y-2">
+               <div className="flex items-center justify-center md:justify-start gap-4">
+                  <h2 onClick={handleUpdateName} className="text-5xl font-black tracking-tight text-white cursor-pointer hover:text-indigo-400 transition-colors">
+                    {user?.name || 'Unknown User'}
+                  </h2>
+                  {user?.isReseller && (
+                    <span className="px-4 py-1.5 bg-amber-500 text-[#020617] text-[10px] font-black uppercase rounded-full shadow-lg shadow-amber-500/20">Authorized Reseller</span>
+                  )}
+               </div>
+               <p className="text-slate-500 font-bold uppercase tracking-[0.3em] text-[10px]">Identifier UID: {user?.shortId || user?.id?.substring(0, 8)}</p>
+            </div>
+
+            <p className="text-slate-400 font-medium max-w-lg leading-relaxed">{user?.bio || 'No status message broadcasted.'}</p>
+
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-12 pt-4">
+               {statsList.map((stat, i) => (
+                 <div key={i} className="text-center md:text-left">
+                    <p className="text-2xl font-black text-white tabular-nums">{stat.count}</p>
+                    <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{stat.title}</p>
+                 </div>
+               ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+             <button onClick={logout} className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 hover:bg-rose-500 hover:text-white transition-all shadow-xl shadow-rose-500/5">
+                <LogOut className="w-6 h-6" />
+             </button>
+             <button className="p-4 rounded-2xl bg-white/5 border border-white/5 text-slate-400 hover:text-white transition-all">
+                <Share2 className="w-6 h-6" />
+             </button>
+          </div>
         </div>
       </section>
 
-      {/* Grid Content */}
-      <div className="pt-20 grid grid-cols-1 lg:grid-cols-3 gap-10">
-        {/* Left Column: Stats & Progress */}
-        <div className="lg:col-span-2 space-y-10">
-          <div className="glass-card p-12 rounded-[3.5rem] space-y-10">
-             <div className="flex justify-between items-center border-b border-white/5 pb-8">
-                <h3 className="text-xl font-black">Experience Flux</h3>
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{user.coins % 1000} / 1000 XP</span>
-             </div>
-             <div className="space-y-4">
-                <div className="h-4 bg-slate-950 rounded-full overflow-hidden border border-white/5">
-                   <div 
-                    className="h-full premium-gradient shadow-[0_0_20px_rgba(99,102,241,0.3)] transition-all duration-1000" 
-                    style={{ width: `${progress}%` }} 
-                   />
-                </div>
-                <p className="text-xs font-bold text-slate-500 text-center uppercase tracking-widest">
-                  {1000 - (user.coins % 1000)} Coins until Level {level + 1}
-                </p>
-             </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-            <div className="glass-card p-10 rounded-[3rem] border-l-4 border-l-purple-500 group hover:bg-white/5 transition-all">
-               <div className="flex justify-between mb-8">
-                  <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center">
-                    <Crown className="text-purple-500 w-6 h-6" />
-                  </div>
-                  <ChevronRight className="text-slate-700 group-hover:text-slate-400 transition-colors" />
+      {/* Assets Bar */}
+      <section className="flex flex-col md:flex-row gap-8">
+         <div className="flex-1 glass-card p-10 rounded-[2.5rem] border-white/5 bg-slate-900/40 backdrop-blur-2xl flex items-center justify-between group cursor-pointer hover:border-indigo-500/30 transition-all">
+            <div className="flex items-center gap-6">
+               <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
+                  <Coins className="w-7 h-7" />
                </div>
-               <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Status Tier</h4>
-               <p className="text-2xl font-black">Aristocracy_v1</p>
-            </div>
-            
-            <div className="glass-card p-10 rounded-[3rem] border-l-4 border-l-amber-500 group hover:bg-white/5 transition-all">
-               <div className="flex justify-between mb-8">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center">
-                    <Award className="text-amber-500 w-6 h-6" />
-                  </div>
-                  <ChevronRight className="text-slate-700 group-hover:text-slate-400 transition-colors" />
-               </div>
-               <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Achievement Medals</h4>
-               <p className="text-2xl font-black">12 Unlocked</p>
-            </div>
-          </div>
-
-          {/* Activity Section */}
-          <div className="glass-card p-12 rounded-[3.5rem]">
-             <h3 className="text-xl font-black mb-10">Social Pulse</h3>
-             <div className="space-y-6">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="flex items-center gap-6 p-6 rounded-3xl bg-white/5 border border-white/5 hover:bg-white/[0.08] transition-all cursor-pointer">
-                    <div className="w-14 h-14 rounded-2xl bg-indigo-600/20 flex items-center justify-center">
-                      <Heart className="text-indigo-500 w-7 h-7" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-black">Joined Midnight Chill Lounge</p>
-                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">2 hours ago</p>
-                    </div>
-                    <ChevronRight className="ml-auto text-slate-700 w-5 h-5" />
-                  </div>
-                ))}
-             </div>
-          </div>
-        </div>
-
-        {/* Right Column: Identity Details */}
-        <div className="space-y-10">
-          <div className="glass-card p-12 rounded-[3.5rem] space-y-8">
-            <h3 className="text-xl font-black mb-4">Metadata</h3>
-            
-            <div className="space-y-6">
-               <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-slate-950 flex items-center justify-center">
-                    <Mail className="w-4 h-4 text-slate-500" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Protocol Email</p>
-                    <p className="text-sm font-bold truncate">{user.email}</p>
-                  </div>
-               </div>
-               
-               <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-slate-950 flex items-center justify-center">
-                    <Calendar className="w-4 h-4 text-slate-500" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Initiation Date</p>
-                    <p className="text-sm font-bold">March 2024</p>
-                  </div>
+               <div>
+                  <p className="text-2xl font-black text-white tabular-nums">{user?.coins || 0}</p>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Active Coins</p>
                </div>
             </div>
+            <ArrowRight className="w-6 h-6 text-slate-800 group-hover:text-indigo-400 group-hover:translate-x-2 transition-all" />
+         </div>
 
-            <button className="w-full py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3">
-              <Settings className="w-4 h-4" />
-              Modify Config
-            </button>
-          </div>
-          
-          <div className="glass-card p-12 rounded-[3.5rem] bg-indigo-600/10 border-indigo-500/20">
-             <h3 className="text-lg font-black mb-4">Identity Verification</h3>
-             <p className="text-sm text-indigo-300 font-medium leading-relaxed mb-8">
-               Your account is secured with end-to-end OTP handshakes. Always keep your verification keys private.
-             </p>
-             <div className="flex items-center gap-3 text-emerald-500">
-                <Shield className="w-5 h-5" />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Verified Hub Active</span>
-             </div>
-          </div>
-        </div>
-      </div>
+         <div className="flex-1 glass-card p-10 rounded-[2.5rem] border-white/5 bg-slate-900/40 backdrop-blur-2xl flex items-center justify-between group cursor-pointer hover:border-indigo-500/30 transition-all">
+            <div className="flex items-center gap-6">
+               <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                  <Gem className="w-7 h-7" />
+               </div>
+               <div>
+                  <p className="text-2xl font-black text-white tabular-nums">{Number(user?.diamonds || 0).toFixed(1)}</p>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Neural Diamonds</p>
+               </div>
+            </div>
+            <ArrowRight className="w-6 h-6 text-slate-800 group-hover:text-indigo-400 group-hover:translate-x-2 transition-all" />
+         </div>
+      </section>
+
+      {/* Menu Grid */}
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+         {menuItems.map((item) => (
+           <AppLink 
+             key={item.id} 
+             to={item.path || '#'}
+             className="glass-card p-8 rounded-[2rem] border-white/5 hover:border-indigo-500/20 hover:bg-slate-900/60 transition-all group"
+           >
+              <div className="flex items-center justify-between mb-6">
+                 <div className={`w-12 h-12 rounded-2xl ${item.bg} flex items-center justify-center ${item.color} border border-white/5`}>
+                    <item.icon className="w-6 h-6" />
+                 </div>
+                 {item.extra && <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">{item.extra}</span>}
+              </div>
+              <h3 className="text-sm font-black text-white group-hover:text-indigo-400 transition-colors uppercase tracking-tight">{item.title}</h3>
+           </AppLink>
+         ))}
+      </section>
+
+      {/* Identity Levels */}
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-8">
+         <div className="glass-card p-10 rounded-[2.5rem] bg-indigo-950/20 border-indigo-500/10 flex items-center justify-between overflow-hidden relative">
+            <div className="absolute top-0 left-0 w-full h-full bg-indigo-600/5 blur-[80px] pointer-events-none" />
+            <div className="relative z-10 flex items-center gap-6">
+               <div className="w-16 h-16 rounded-2xl bg-amber-500/20 flex items-center justify-center text-amber-500 shadow-2xl shadow-amber-500/10 border border-amber-500/20">
+                  <Crown className="w-8 h-8" />
+               </div>
+               <div>
+                  <h4 className="text-lg font-black text-white">Aristocracy Protocol</h4>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Access Level: {user?.aristocracyLevel || 0}</p>
+               </div>
+            </div>
+            <AppLink to="/store" className="relative z-10 px-6 py-2.5 bg-indigo-600 text-white text-[10px] font-black uppercase rounded-full tracking-widest shadow-lg shadow-indigo-600/20 hover:scale-105 transition-all">Establish Rank</AppLink>
+         </div>
+
+         <div className="glass-card p-10 rounded-[2.5rem] bg-emerald-950/20 border-emerald-500/10 flex items-center justify-between overflow-hidden relative">
+            <div className="absolute top-0 left-0 w-full h-full bg-emerald-600/5 blur-[80px] pointer-events-none" />
+            <div className="relative z-10 flex items-center gap-6">
+               <div className="w-16 h-16 rounded-2xl bg-emerald-500/20 flex items-center justify-center text-emerald-500 shadow-2xl shadow-emerald-500/10 border border-emerald-500/20">
+                  <Gem className="w-8 h-8" />
+               </div>
+               <div>
+                  <h4 className="text-lg font-black text-white">SVIP Resonance</h4>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Resonance Tier: {user?.svipLevel || 0}</p>
+               </div>
+            </div>
+            <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest bg-emerald-500/10 px-4 py-2 rounded-full border border-emerald-500/20">Stable Signal</span>
+         </div>
+      </section>
     </div>
   );
 };

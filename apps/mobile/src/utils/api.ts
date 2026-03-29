@@ -2,7 +2,7 @@ import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 
 // Replace with your local IP for physical device testing
-const BASE_URL = 'https://api.onchat.fun/api';
+const BASE_URL = 'http://13.126.135.253/api';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -12,7 +12,12 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    config.headers = config.headers || {};
+    if (typeof config.headers.set === 'function') {
+      config.headers.set('Authorization', `Bearer ${token}`);
+    } else {
+      (config.headers as any).Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 });

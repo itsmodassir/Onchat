@@ -1,122 +1,204 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useStore } from '../store';
+import api from '../utils/api';
 import { 
-  ShoppingBag, 
-  Crown, 
-  Ghost as GhostIcon, 
-  MessageCircle, 
-  Car, 
-  Sparkles,
-  ChevronRight,
-  ShoppingCart
+  ChevronLeft, ShoppingBag, Coins, 
+  Sparkles, Zap, Package, 
+  Heart, Star
 } from 'lucide-react';
-
-const CATEGORIES = [
-  { id: 'mounts', label: 'Mounts', icon: Car },
-  { id: 'headwear', label: 'Headwear', icon: Crown },
-  { id: 'bubbles', label: 'Bubbles', icon: MessageCircle },
-  { id: 'effects', label: 'Effects', icon: Sparkles },
-  { id: 'special', label: 'Special', icon: GhostIcon },
-];
-
-const MOCK_ITEMS = [
-  { id: '1', name: 'Cyber Dragon', category: 'mounts', price: 50000, rarity: 'Legendary' },
-  { id: '2', name: 'Neon Crown', category: 'headwear', price: 15000, rarity: 'Epic' },
-  { id: '3', name: 'Hologram Wings', category: 'effects', price: 25000, rarity: 'Rare' },
-  { id: '4', name: 'Pixel Bubble', category: 'bubbles', price: 5000, rarity: 'Common' },
-  { id: '5', name: 'Imperial Throne', category: 'special', price: 100000, rarity: 'Mythic' },
-  { id: '6', name: 'Starship', category: 'mounts', price: 75000, rarity: 'Legendary' },
-];
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const StoreScreen = () => {
-  const [activeCat, setActiveCat] = useState('mounts');
+  const navigate = useNavigate();
+  const { user } = useStore();
+  const [activeTab, setActiveTab] = useState('HeadWear');
+  const [items, setItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const categories = [
+    { id: 'HeadWear', label: 'Headwear', icon: Star },
+    { id: 'Mounts', label: 'Mounts', icon: Zap },
+    { id: 'Chat Bubble', label: 'Bubbles', icon: Sparkles },
+    { id: 'Float', label: 'Floats', icon: Package },
+  ];
+
+  const fetchItems = async () => {
+    setLoading(true);
+    try {
+      let category = activeTab.toUpperCase();
+      if (category === 'MOUNTS') category = 'MOUNT';
+      if (category === 'CHAT BUBBLE') category = 'BUBBLE';
+
+      const response = await api.get('/shop/store', {
+        params: { category }
+      });
+      setItems(response.data);
+    } catch (error) {
+      console.error('Fetch items error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchItems();
+  }, [activeTab]);
+
+  const handleBuy = async (itemId: string) => {
+    try {
+      await api.post('/shop/store/buy', { itemId });
+      alert('Asset acquired. Integration complete.');
+    } catch (error: any) {
+      alert(error.response?.data?.error || 'Acquisition protocol failed.');
+    }
+  };
 
   return (
-    <div className="p-12 pb-24 space-y-12 animate-in fade-in duration-700">
+    <div className="max-w-7xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700 p-8">
       {/* Header */}
-      <section className="flex justify-between items-end bg-slate-950/40 p-12 rounded-[3.5rem] border border-white/5 relative overflow-hidden">
-        <div className="relative z-10">
-           <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full text-amber-500 text-[9px] font-black uppercase tracking-widest mb-6">
-              <ShoppingBag className="w-3 h-3" />
-              Premium Marketplace
-           </div>
-           <h1 className="text-5xl font-black tracking-tighter mb-4">Virtual Outfitter</h1>
-           <p className="text-slate-500 font-bold uppercase tracking-[0.25em] text-[10px]">Customize your digital presence</p>
-        </div>
-        <div className="relative z-10">
-           <button className="flex items-center gap-4 px-8 py-4 bg-white text-slate-950 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-2xl hover:bg-indigo-50 transition-all">
-              <ShoppingCart className="w-5 h-5" />
-              My Bag
-           </button>
-        </div>
-        <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-indigo-600/10 to-transparent" />
+      <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+         <div className="flex items-center gap-6">
+            <button 
+              onClick={() => navigate(-1)}
+              className="w-12 h-12 rounded-2xl bg-slate-900 border border-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-all shadow-xl"
+            >
+               <ChevronLeft className="w-6 h-6" />
+            </button>
+            <div>
+               <h1 className="text-4xl font-black tracking-tight text-white mb-1 text-gradient">Asset Store</h1>
+               <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] flex items-center gap-2">
+                  <ShoppingBag className="w-3 h-3 text-indigo-400" />
+                  Premium Virtual Enhancements
+               </p>
+            </div>
+         </div>
+
+         <div className="flex gap-4">
+            <div className="px-6 py-3 rounded-2xl bg-slate-900 border border-white/5 flex items-center gap-4">
+               <Coins className="w-5 h-5 text-amber-500" />
+               <span className="text-sm font-black text-white tabular-nums">{user?.coins || 0}</span>
+            </div>
+            <button className="px-8 py-3 rounded-2xl bg-indigo-600 text-white text-[11px] font-black uppercase tracking-widest shadow-lg shadow-indigo-600/20 hover:scale-105 active:scale-95 transition-all">
+               Recharge
+            </button>
+         </div>
+      </div>
+
+      {/* Featured Preview */}
+      <section className="relative h-[400px] rounded-[3.5rem] overflow-hidden border border-white/5 group">
+         <img 
+           src="https://images.unsplash.com/photo-1614850523296-d8c1af93d400?q=80&w=2070" 
+           className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-1000"
+           alt="Featured Asset"
+         />
+         <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-[#020617]/40 to-transparent" />
+         
+         <div className="absolute bottom-12 left-12 space-y-4">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-indigo-600 rounded-full text-[10px] font-black uppercase tracking-widest text-white shadow-xl shadow-indigo-600/20">
+               Featured Asset
+            </div>
+            <h2 className="text-6xl font-black text-white tracking-tight">Cyber-Ronin Mount</h2>
+            <p className="text-slate-400 font-medium max-w-xl text-lg">Limited edition high-velocity mount with custom entry effects and resonance particles.</p>
+            <div className="flex items-center gap-6 pt-4">
+               <button className="px-10 py-5 bg-white text-slate-950 rounded-[2rem] font-black uppercase tracking-widest text-[11px] hover:bg-indigo-500 hover:text-white transition-all shadow-2xl active:scale-95">
+                  Acquire Now
+               </button>
+               <div className="flex items-center gap-2">
+                  <Coins className="w-5 h-5 text-amber-500" />
+                  <span className="text-2xl font-black text-white">45,000</span>
+               </div>
+            </div>
+         </div>
       </section>
 
-      {/* Categories */}
-      <section className="flex items-center gap-6 overflow-x-auto pb-4 no-scrollbar">
-         {CATEGORIES.map(cat => (
+      {/* Category Tabs */}
+      <div className="flex items-center justify-center gap-4 py-8">
+         {categories.map((cat) => (
            <button
              key={cat.id}
-             onClick={() => setActiveCat(cat.id)}
-             className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-[11px] transition-all whitespace-nowrap border-2 ${
-               activeCat === cat.id 
-                 ? 'bg-indigo-600 border-indigo-500 text-white shadow-xl shadow-indigo-600/20' 
-                 : 'bg-white/5 border-transparent text-slate-500 hover:text-slate-300 hover:bg-white/10'
+             onClick={() => setActiveTab(cat.id)}
+             className={`flex items-center gap-3 px-8 py-4 rounded-2xl border transition-all ${
+               activeTab === cat.id 
+                 ? 'bg-indigo-600 border-indigo-400 text-white shadow-xl shadow-indigo-600/20' 
+                 : 'bg-slate-900 border-white/5 text-slate-500 hover:text-slate-300 hover:border-white/10'
              }`}
            >
-             <cat.icon className="w-4 h-4" />
-             {cat.label}
+             <cat.icon className="w-5 h-5" />
+             <span className="text-sm font-black uppercase tracking-widest">{cat.label}</span>
            </button>
          ))}
-      </section>
+      </div>
 
       {/* Items Grid */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
-         {MOCK_ITEMS.filter(i => i.category === activeCat).map(item => (
-           <div key={item.id} className="glass-card rounded-[3rem] overflow-hidden group hover:scale-[1.02] transition-all">
-              <div className="aspect-square bg-slate-800/50 p-12 relative flex items-center justify-center">
-                 <div className="w-full h-full border-2 border-dashed border-white/5 rounded-[2rem] flex items-center justify-center">
-                    <Sparkles className="w-20 h-20 text-slate-700 opacity-20 group-hover:scale-110 transition-transform duration-700" />
+      <AnimatePresence mode="wait">
+        <motion.div 
+          key={activeTab}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8"
+        >
+          {loading ? (
+            Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-80 rounded-[2.5rem] bg-slate-900/50 animate-pulse border border-white/5" />
+            ))
+          ) : items.length > 0 ? (
+            items.map((item) => (
+              <motion.div 
+                key={item.id}
+                whileHover={{ y: -8 }}
+                className="glass-card p-8 rounded-[2.5rem] border-white/5 group relative overflow-hidden flex flex-col items-center"
+              >
+                 <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Heart className="w-5 h-5 text-rose-500 cursor-pointer hover:fill-current" />
                  </div>
-                 
-                 <div className="absolute top-6 right-6">
-                    <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border ${
-                      item.rarity === 'Legendary' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
-                      item.rarity === 'Epic' ? 'bg-purple-500/10 text-purple-500 border-purple-500/20' :
-                      'bg-slate-500/10 text-slate-500 border-white/5'
-                    }`}>
-                      {item.rarity}
-                    </span>
+
+                 <div className="w-40 h-40 mb-6 relative group-hover:scale-110 transition-transform duration-500 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-indigo-500/10 blur-[40px] rounded-full group-hover:bg-indigo-500/20 transition-colors" />
+                    <img src={item.image} alt={item.name} className="w-full h-full object-contain relative z-10" />
                  </div>
-              </div>
-              
-              <div className="p-10">
-                 <h3 className="text-xl font-black mb-6">{item.name}</h3>
-                 <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                       <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
-                          <Crown className="w-4 h-4" />
-                       </div>
-                       <span className="text-lg font-black tabular-nums">{item.price.toLocaleString()}</span>
+
+                 <div className="text-center space-y-4 w-full">
+                    <h3 className="text-lg font-black text-white group-hover:text-indigo-400 transition-colors">{item.name}</h3>
+                    
+                    <div className="flex items-center justify-center gap-3 py-2 bg-slate-950/40 rounded-2xl border border-white/5">
+                       <img 
+                         src={item.currency === 'COIN' ? 'https://cdn-icons-png.flaticon.com/512/2489/2489756.png' : 'https://cdn-icons-png.flaticon.com/512/2312/2312739.png'} 
+                         className="w-4 h-4" 
+                         alt="currency"
+                       />
+                       <span className="text-lg font-black text-amber-500 tabular-nums">{item.price}</span>
                     </div>
-                    <button className="px-6 py-3 bg-white/5 group-hover:bg-indigo-600 group-hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
-                       Buy Now
+
+                    <button 
+                      onClick={() => handleBuy(item.id)}
+                      className="w-full py-4 bg-white text-slate-950 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-600 hover:text-white transition-all shadow-xl active:scale-95"
+                    >
+                       Establish Connection
                     </button>
                  </div>
-              </div>
-           </div>
-         ))}
-      </section>
-      
-      {/* Banner */}
-      <section className="premium-gradient p-16 rounded-[4rem] text-center space-y-6">
-         <h2 className="text-4xl font-black tracking-tighter">Aristocracy Collection Drop</h2>
-         <p className="text-slate-100/60 font-medium max-w-xl mx-auto">
-           Unlock limited edition mounts and headwear only available for Tier 3 verification members.
-         </p>
-         <button className="px-12 py-5 bg-slate-950 text-white rounded-2xl font-black uppercase tracking-widest text-[11px] hover:scale-105 transition-transform">
-           Explore Collection <ChevronRight className="inline-block ml-2 w-4 h-4" />
-         </button>
-      </section>
+              </motion.div>
+            ))
+          ) : (
+            <div className="col-span-full py-32 text-center space-y-4">
+               <Package className="w-16 h-16 text-slate-800 mx-auto" />
+               <p className="text-slate-600 font-black uppercase tracking-[0.3em] text-xs">No assets detected in this frequency</p>
+            </div>
+          )}
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Footer Hint */}
+      <div className="py-12 border-t border-white/5">
+         <div className="flex flex-col md:flex-row items-center justify-between gap-8 opacity-60">
+            <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest italic">Inventory re-sync every 300 seconds</p>
+            <div className="flex items-center gap-8">
+               <button className="text-[10px] font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest">Store Policies</button>
+               <button className="text-[10px] font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest">Technical Support</button>
+            </div>
+         </div>
+      </div>
     </div>
   );
 };

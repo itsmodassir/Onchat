@@ -1,9 +1,14 @@
-
-import { Home, Search, Wallet, User, Store, MessageSquare, Trophy, LogOut, ShieldCheck } from 'lucide-react';
+import { 
+  Home, Search, Wallet, User, Store, MessageSquare, 
+  Trophy, LogOut, ShieldCheck, Gift, Users, 
+  TrendingUp, Sparkles, Settings, HardDrive, Target 
+} from 'lucide-react';
 import { useStore } from '../store';
 import { Link, useLocation } from 'react-router-dom';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+
+const AppLink = Link as any;
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -14,7 +19,7 @@ const SidebarItem = ({ to, icon: Icon, label }: { to: string; icon: any; label: 
   const isActive = location.pathname === to;
 
   return (
-    <Link
+    <AppLink
       to={to}
       className={cn(
         "flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-300 group",
@@ -34,7 +39,7 @@ const SidebarItem = ({ to, icon: Icon, label }: { to: string; icon: any; label: 
       )}>
         <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]" />
       </div>
-    </Link>
+    </AppLink>
   );
 };
 
@@ -59,6 +64,8 @@ export const Sidebar = () => {
           <div className="space-y-1">
             <SidebarItem to="/" icon={Home} label="Feed" />
             <SidebarItem to="/search" icon={Search} label="Explore" />
+            <SidebarItem to="/daily-reward" icon={Gift} label="Daily Gifts" />
+            <SidebarItem to="/family" icon={Users} label="Dynasty" />
           </div>
         </div>
 
@@ -67,7 +74,11 @@ export const Sidebar = () => {
           <div className="space-y-1">
             <SidebarItem to="/profile" icon={User} label="Identity" />
             <SidebarItem to="/wallet" icon={Wallet} label="Vault" />
+            <SidebarItem to="/creator" icon={TrendingUp} label="Studio" />
             <SidebarItem to="/messages" icon={MessageSquare} label="Comms" />
+            <SidebarItem to="/settings" icon={Settings} label="Portal Settings" />
+            <SidebarItem to="/storage" icon={HardDrive} label="VFS Vault" />
+            <SidebarItem to="/interests" icon={Target} label="Neural Match" />
           </div>
         </div>
 
@@ -76,6 +87,8 @@ export const Sidebar = () => {
           <div className="space-y-1">
             <SidebarItem to="/store" icon={Store} label="Outfits" />
             <SidebarItem to="/leaderboard" icon={Trophy} label="Rankings" />
+            <SidebarItem to="/lucky-wheel" icon={Sparkles} label="Fate Wheel" />
+            <SidebarItem to="/griddy" icon={Trophy} label="Griddy Luck" />
           </div>
         </div>
       </nav>
@@ -102,12 +115,12 @@ export const Sidebar = () => {
             </button>
           </div>
         ) : (
-          <Link
+          <AppLink
             to="/login"
             className="w-full premium-gradient text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3 shadow-xl shadow-indigo-600/20 active:scale-[0.98] transition-all uppercase tracking-widest text-[11px]"
           >
             Terminal Login
-          </Link>
+          </AppLink>
         )}
         
         <div className="flex items-center justify-between px-2 pt-4">

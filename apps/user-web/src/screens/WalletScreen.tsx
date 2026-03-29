@@ -1,185 +1,233 @@
-import { useState } from 'react';
-import { useStore } from '../store';
+import { useState, useCallback, useEffect } from 'react';
+import api from '../utils/api';
 import { 
-  Diamond, 
-  Coins, 
-  Zap, 
-  CreditCard, 
-  History, 
-  ArrowUpRight, 
-  TrendingUp,
-  RefreshCw,
-  Gift
+  ChevronLeft, FileText, MessageCircle, ChevronRight, 
+  Coins, Gem, Zap, ShieldCheck, ArrowUpRight, 
+  CreditCard, History
 } from 'lucide-react';
-
-const PACKAGES = [
-  { coins: 2000, price: 0.99, tag: 'Starter' },
-  { coins: 9000, price: 4.99, tag: 'Popular', highlight: true },
-  { coins: 19000, price: 9.99, tag: 'Pro' },
-  { coins: 40000, price: 19.99, tag: 'Legend' },
-  { coins: 90000, price: 49.99, tag: 'Divine' },
-  { coins: 200000, price: 99.99, tag: 'Protocol Overload' },
-];
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const WalletScreen = () => {
-  const { user } = useStore();
-  const [activeTab, setActiveTab] = useState('coins');
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('Wallet'); 
+  const [wallet, setWallet] = useState({ coins: 0, diamonds: 0, crystals: 0 });
 
-  if (!user) return <div className="p-12">Session Required.</div>;
+  const fetchWallet = useCallback(async () => {
+    try {
+      const response = await api.get('/shop/wallet');
+      setWallet(response.data);
+    } catch (error) {
+      console.error('Fetch wallet error:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchWallet();
+  }, [fetchWallet]);
+
+  const handleRecharge = async (amount: number) => {
+    // Note: Razorpay Web integration would normally go here. 
+    // For now, mirroring the logic with a secure placeholder or directing to support.
+    alert(`Recharge protocol for ${amount} coins initiated. Terminal redirection to secure payment gateway is pending API configuration.`);
+  };
+
+  const rechargeOptions = [
+    { coins: 900, bonus: 160, price: '$0.99', popular: false },
+    { coins: 4500, bonus: 910, price: '$4.99', popular: false },
+    { coins: 9100, bonus: 1910, price: '$9.99', popular: true },
+    { coins: 18200, bonus: 4000, price: '$19.99', popular: false },
+    { coins: 45400, bonus: 10500, price: '$49.99', popular: false },
+    { coins: 90900, bonus: 21500, price: '$99.99', popular: false },
+  ];
 
   return (
-    <div className="p-12 space-y-12 animate-in fade-in duration-700">
-      {/* Header */}
-      <section className="flex justify-between items-end">
-        <div>
-           <h1 className="text-5xl font-black tracking-tighter mb-4">Asset Vault</h1>
-           <p className="text-slate-500 font-bold uppercase tracking-[0.3em] text-[10px]">Financial Cluster Management</p>
-        </div>
-        <button className="flex items-center gap-3 px-6 py-4 glass-card rounded-2xl hover:bg-white/10 transition-all">
-          <History className="w-5 h-5 text-slate-400" />
-          <span className="text-[11px] font-black uppercase tracking-widest">Flux History</span>
-        </button>
-      </section>
-
-      {/* Main Balances */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-10">
-         {/* Coins */}
-         <div className="premium-gradient p-1 rounded-[3.5rem] shadow-2xl shadow-indigo-600/20">
-            <div className="bg-[#020617] h-full rounded-[3.2rem] p-10 flex flex-col justify-between">
-               <div className="flex justify-between mb-12">
-                  <div className="w-14 h-14 bg-indigo-600/10 rounded-2xl flex items-center justify-center">
-                    <Coins className="text-indigo-500 w-8 h-8" />
-                  </div>
-                  <div className="px-3 py-1 bg-indigo-500/10 rounded-full text-indigo-500 text-[10px] font-black uppercase tracking-widest">Utility Asset</div>
-               </div>
-               <div>
-                  <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Gold Coins</h3>
-                  <div className="flex items-baseline gap-3">
-                    <p className="text-5xl font-black tabular-nums">{user.coins.toLocaleString()}</p>
-                    <span className="text-slate-600 text-sm font-bold">OCG</span>
-                  </div>
-               </div>
-            </div>
-         </div>
-
-         {/* Diamonds */}
-         <div className="bg-white/5 border border-white/5 p-10 rounded-[3.5rem] flex flex-col justify-between group hover:border-pink-500/30 transition-all">
-               <div className="flex justify-between mb-12">
-                  <div className="w-14 h-14 bg-pink-500/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Diamond className="text-pink-500 w-8 h-8" />
-                  </div>
-                  <div className="px-3 py-1 bg-pink-500/10 rounded-full text-pink-500 text-[10px] font-black uppercase tracking-widest">Premium Core</div>
-               </div>
-               <div>
-                  <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Diamonds</h3>
-                  <div className="flex items-baseline gap-3">
-                    <p className="text-5xl font-black tabular-nums">{user.diamonds.toLocaleString()}</p>
-                    <span className="text-slate-600 text-sm font-bold">OCD</span>
-                  </div>
-               </div>
-         </div>
-
-         {/* Crystals */}
-         <div className="bg-white/5 border border-white/5 p-10 rounded-[3.5rem] flex flex-col justify-between group hover:border-emerald-500/30 transition-all">
-               <div className="flex justify-between mb-12">
-                  <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Zap className="text-emerald-500 w-8 h-8" />
-                  </div>
-                  <div className="px-3 py-1 bg-emerald-500/10 rounded-full text-emerald-500 text-[10px] font-black uppercase tracking-widest">Cluster Energy</div>
-               </div>
-               <div>
-                  <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Crystals</h3>
-                  <div className="flex items-baseline gap-3">
-                    <p className="text-5xl font-black tabular-nums">{user.crystals.toLocaleString()}</p>
-                    <span className="text-slate-600 text-sm font-bold">OCC</span>
-                  </div>
-               </div>
-         </div>
-      </section>
-
-      {/* Recharge Section */}
-      <section className="glass-card p-12 rounded-[4rem] space-y-12">
-         <div className="flex items-center justify-between">
-            <div className="flex items-center gap-10">
-               <button onClick={() => setActiveTab('coins')} className={`text-sm font-black uppercase tracking-widest pb-4 transition-all relative ${activeTab === 'coins' ? 'text-white' : 'text-slate-600'}`}>
-                 Coin Recharge
-                 {activeTab === 'coins' && <div className="absolute bottom-0 left-0 w-full h-1 bg-indigo-600 rounded-full" />}
-               </button>
-               <button onClick={() => setActiveTab('exchange')} className={`text-sm font-black uppercase tracking-widest pb-4 transition-all relative ${activeTab === 'exchange' ? 'text-white' : 'text-slate-600'}`}>
-                 Crystal Swap
-                 {activeTab === 'exchange' && <div className="absolute bottom-0 left-0 w-full h-1 bg-emerald-600 rounded-full" />}
-               </button>
-            </div>
-            <div className="flex items-center gap-2 text-indigo-400 bg-indigo-500/10 px-4 py-2 rounded-xl">
-               <TrendingUp className="w-4 h-4" />
-               <span className="text-[10px] font-black uppercase tracking-widest">+15% Bonus Active</span>
-            </div>
-         </div>
-
-         {activeTab === 'coins' ? (
-           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {PACKAGES.map((pkg, i) => (
-                <button key={i} className={`p-10 rounded-[3rem] border-2 transition-all group relative overflow-hidden ${
-                  pkg.highlight ? 'bg-indigo-600/10 border-indigo-600' : 'bg-slate-950/40 border-white/5 hover:border-indigo-500/30'
-                }`}>
-                   {pkg.highlight && (
-                     <div className="absolute -top-10 -right-10 w-24 h-24 bg-indigo-600 rotate-45 flex items-end justify-center pb-2 underline font-black text-[9px] uppercase tracking-widest">Hot</div>
-                   )}
-                   <div className="flex justify-between items-start mb-10">
-                      <div className="w-12 h-12 rounded-2xl bg-slate-900 flex items-center justify-center group-hover:bg-indigo-600 transition-colors">
-                        <Coins className="w-6 h-6 text-indigo-500 group-hover:text-white" />
-                      </div>
-                      <span className="text-[10px] font-black text-slate-600 group-hover:text-indigo-400 transition-colors uppercase tracking-[0.2em]">{pkg.tag}</span>
-                   </div>
-                   <h4 className="text-3xl font-black mb-8">{pkg.coins.toLocaleString()} <span className="text-sm text-slate-500">OCG</span></h4>
-                   <div className="flex items-center justify-between">
-                      <span className="text-lg font-black text-white">${pkg.price}</span>
-                      <div className="px-6 py-3 bg-white text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-widest group-hover:bg-indigo-500 group-hover:text-white transition-all shadow-xl">
-                         Inject Assets
-                      </div>
-                   </div>
-                </button>
-              ))}
-           </div>
-         ) : (
-           <div className="flex flex-col items-center justify-center py-20 bg-slate-950/50 rounded-[3.5rem] border border-dashed border-white/5">
-              <RefreshCw className="w-16 h-16 text-slate-800 mb-8 animate-spin-slow" />
-              <h3 className="text-2xl font-black mb-4">Crystal Exchange Active</h3>
-              <p className="text-slate-500 font-medium mb-12 text-center max-w-sm">
-                 Swap your accumulated social crystals for premium gold assets. Initialized via the mainnet bridge.
-              </p>
-              <div className="flex gap-4">
-                 <button className="px-10 py-5 bg-emerald-600 text-white font-black rounded-2xl uppercase tracking-widest text-[11px] shadow-2xl shadow-emerald-500/20">Swap Now</button>
-                 <button className="px-10 py-5 bg-white/5 hover:bg-white/10 text-white font-black rounded-2xl uppercase tracking-widest text-[11px]">View Rates</button>
-              </div>
-           </div>
-         )}
-      </section>
-
-      {/* Perks Footer */}
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-10">
-         <div className="glass-card p-12 rounded-[3.5rem] flex items-center gap-10 group cursor-pointer hover:bg-white/5 transition-all">
-            <div className="w-20 h-20 bg-indigo-600/10 rounded-[2rem] flex items-center justify-center group-hover:scale-110 transition-transform">
-               <Gift className="text-indigo-500 w-10 h-10" />
-            </div>
+    <div className="max-w-6xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700 p-8">
+      {/* Header & Tabs */}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+         <div className="flex items-center gap-6">
+            <button 
+              onClick={() => navigate(-1)}
+              className="w-12 h-12 rounded-2xl bg-slate-900 border border-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-all shadow-xl"
+            >
+               <ChevronLeft className="w-6 h-6" />
+            </button>
             <div>
-               <h4 className="text-xl font-black mb-2">Claim Daily Bonus</h4>
-               <p className="text-sm text-slate-500 font-medium">Inject up to 500 gold coins daily.</p>
+               <h1 className="text-4xl font-black tracking-tight text-white mb-1">Financial Vault</h1>
+               <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] flex items-center gap-2">
+                  <ShieldCheck className="w-3 h-3 text-indigo-400" />
+                  Secure Asset Management Terminal
+               </p>
             </div>
-            <ArrowUpRight className="ml-auto text-slate-800 group-hover:text-indigo-500 transition-colors" />
          </div>
-         
-         <div className="glass-card p-12 rounded-[3.5rem] flex items-center gap-10 group cursor-pointer hover:bg-white/5 transition-all">
-            <div className="w-20 h-20 bg-emerald-600/10 rounded-[2rem] flex items-center justify-center group-hover:scale-110 transition-transform">
-               <CreditCard className="text-emerald-500 w-10 h-10" />
-            </div>
-            <div>
-               <h4 className="text-xl font-black mb-2">Saved Methods</h4>
-               <p className="text-sm text-slate-500 font-medium">Manage Razorpay secure vinculations.</p>
-            </div>
-            <ArrowUpRight className="ml-auto text-slate-800 group-hover:text-emerald-500 transition-colors" />
+
+         <div className="flex bg-slate-900/50 p-1.5 rounded-2xl border border-white/5 backdrop-blur-xl">
+            {['Wallet', 'Diamonds', 'Crystals'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-8 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${
+                  activeTab === tab 
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20' 
+                    : 'text-slate-500 hover:text-slate-300'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
          </div>
-      </section>
+
+         <button className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-all">
+            <History className="w-5 h-5" />
+         </button>
+      </div>
+
+      <AnimatePresence mode="wait">
+        {activeTab === 'Wallet' && (
+          <motion.div 
+            key="wallet"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-12"
+          >
+            {/* Balance Card */}
+            <div className="glass-card p-12 rounded-[3.5rem] bg-indigo-600 relative overflow-hidden group">
+               <div className="absolute top-0 right-0 w-[60%] h-full bg-white/10 blur-[120px] pointer-events-none" />
+               <div className="relative z-10 flex flex-col items-center text-center space-y-4">
+                  <div className="w-20 h-20 rounded-[2rem] bg-white/20 flex items-center justify-center backdrop-blur-xl border border-white/20 mb-4">
+                     <Coins className="w-10 h-10 text-white" />
+                  </div>
+                  <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.4em]">Current Liquid Retain</p>
+                  <h2 className="text-7xl font-black text-white tracking-tighter tabular-nums">
+                     {wallet.coins.toLocaleString()}
+                  </h2>
+                  <div className="flex items-center gap-2 px-4 py-1.5 bg-black/20 rounded-full border border-white/10">
+                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                     <span className="text-[9px] font-black text-white uppercase tracking-widest text-emerald-100">Synchronized with Mainnet</span>
+                  </div>
+               </div>
+            </div>
+
+            {/* Recharge Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+               {rechargeOptions.map((item, idx) => (
+                 <div 
+                   key={idx}
+                   onClick={() => handleRecharge(item.coins)}
+                   className={`glass-card p-10 rounded-[2.5rem] border-white/5 flex flex-col items-center gap-6 group cursor-pointer hover:border-indigo-500/30 hover:bg-slate-900/60 transition-all relative overflow-hidden ${item.popular ? 'ring-2 ring-indigo-500' : ''}`}
+                 >
+                    {item.popular && (
+                      <div className="absolute top-6 right-6 px-3 py-1 bg-indigo-500 text-white text-[8px] font-black uppercase rounded-full shadow-lg">Popular Choice</div>
+                    )}
+                    <div className="w-16 h-16 rounded-2xl bg-amber-500/10 flex items-center justify-center border border-amber-500/20 text-amber-500 group-hover:scale-110 transition-transform">
+                       <Zap className="w-8 h-8 fill-current" />
+                    </div>
+                    <div className="text-center">
+                       <h3 className="text-2xl font-black text-white tabular-nums tracking-tight">{item.coins.toLocaleString()} <span className="text-xs text-slate-500">Coins</span></h3>
+                       <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mt-1">+{item.bonus} Bonus Included</p>
+                    </div>
+                    <button className="w-full py-4 bg-white text-slate-950 font-black text-xs uppercase tracking-widest rounded-2xl group-hover:bg-indigo-500 group-hover:text-white transition-all shadow-xl shadow-white/5 active:scale-95">
+                       {item.price} Acquire
+                    </button>
+                 </div>
+               ))}
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'Diamonds' && (
+          <motion.div 
+            key="diamonds"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-12"
+          >
+            <div className="glass-card p-12 rounded-[3.5rem] bg-emerald-600 relative overflow-hidden">
+               <div className="absolute top-0 right-0 w-[60%] h-full bg-white/10 blur-[120px] pointer-events-none" />
+               <div className="relative z-10 flex flex-col items-center text-center space-y-4">
+                  <div className="w-20 h-20 rounded-[2rem] bg-white/20 flex items-center justify-center backdrop-blur-xl border border-white/20 mb-4">
+                     <Gem className="w-10 h-10 text-white" />
+                  </div>
+                  <p className="text-[10px] font-black text-white/60 uppercase tracking-[0.4em]">Neural Diamond Reserves</p>
+                  <h2 className="text-7xl font-black text-white tracking-tighter tabular-nums">
+                     {wallet.diamonds.toFixed(1)}
+                  </h2>
+               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+               <div className="glass-card p-12 rounded-[3rem] border-white/5 space-y-6">
+                  <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                     <ArrowUpRight className="w-7 h-7" />
+                  </div>
+                  <h3 className="text-xl font-black text-white uppercase tracking-tight">Protocol: Receive & Earn</h3>
+                  <p className="text-sm text-slate-500 font-medium leading-relaxed">
+                    Diamonds are synthesized when you receive gifts in voice portals or clusters. Higher engagement velocity accelerates core generation.
+                  </p>
+               </div>
+               <div className="glass-card p-12 rounded-[3rem] border-white/5 flex flex-col justify-center gap-6">
+                  <button className="w-full py-6 rounded-[2rem] border border-emerald-500/30 text-emerald-400 font-black uppercase tracking-widest text-xs hover:bg-emerald-500 hover:text-white transition-all shadow-2xl active:scale-[0.98]">
+                     Initiate Liquidation Exchange
+                  </button>
+                  <p className="text-center text-[10px] font-black text-slate-700 uppercase tracking-widest">Rate: 100 Diamonds = 100 Coins (Direct Peer Sync)</p>
+               </div>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'Crystals' && (
+          <motion.div 
+            key="crystals"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-12"
+          >
+            <div className="glass-card p-12 rounded-[3.5rem] bg-slate-900 border-indigo-500/30 relative overflow-hidden">
+               <div className="absolute top-0 right-0 w-[60%] h-full bg-indigo-500/5 blur-[120px] pointer-events-none" />
+               <div className="relative z-10 flex flex-col items-center text-center space-y-4">
+                  <div className="w-20 h-20 rounded-[2rem] bg-indigo-500/10 flex items-center justify-center backdrop-blur-xl border border-indigo-500/20 mb-4">
+                     <ShieldCheck className="w-10 h-10 text-indigo-400" />
+                  </div>
+                  <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em]">Elite Crystal Integrity</p>
+                  <h2 className="text-7xl font-black text-white tracking-tighter tabular-nums">
+                     {wallet.crystals}
+                  </h2>
+               </div>
+            </div>
+
+            <div className="glass-card p-12 rounded-[3rem] border-white/5 flex items-center justify-between group cursor-pointer hover:border-indigo-500/20 transition-all">
+               <div className="flex items-center gap-8">
+                  <div className="w-16 h-16 rounded-[1.5rem] bg-white/5 flex items-center justify-center border border-white/10 text-indigo-400">
+                     <CreditCard className="w-8 h-8" />
+                  </div>
+                  <div>
+                     <h3 className="text-lg font-black text-white uppercase tracking-tight">Expand Crystal Capacity</h3>
+                     <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Protocol available for LV.50+ Identities</p>
+                  </div>
+               </div>
+               <ChevronRight className="w-8 h-8 text-slate-800 group-hover:text-indigo-400 group-hover:translate-x-2 transition-all" />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="pt-12 text-center">
+         <p className="text-[10px] font-black text-slate-700 uppercase tracking-[0.3em] mb-4">Secure Support Handshake</p>
+         <div className="flex items-center justify-center gap-8">
+            <button className="flex items-center gap-2 text-[10px] font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest">
+               <MessageCircle className="w-4 h-4" />
+               Signal Center
+            </button>
+            <div className="w-1 h-1 rounded-full bg-slate-800" />
+            <button className="flex items-center gap-2 text-[10px] font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest">
+               <FileText className="w-4 h-4" />
+               Audit Logs
+            </button>
+         </div>
+      </div>
     </div>
   );
 };
