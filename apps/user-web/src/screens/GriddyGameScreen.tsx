@@ -13,6 +13,8 @@ import {
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const AppLink = (Link as any);
+
 export const GriddyGameScreen = () => {
   const { user, updateUser } = useStore();
   const [betAmount, setBetAmount] = useState(100);
@@ -55,12 +57,12 @@ export const GriddyGameScreen = () => {
       {/* Header Area */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="flex items-center gap-6">
-          <Link 
+          <AppLink 
             to="/" 
             className="w-12 h-12 rounded-2xl bg-slate-900 border border-white/5 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition-all shadow-xl"
           >
             <ChevronLeft className="w-6 h-6" />
-          </Link>
+          </AppLink>
           <div>
             <h1 className="text-4xl font-black tracking-tight text-white mb-1">Griddy Luck</h1>
             <p className="text-slate-500 font-bold uppercase tracking-widest text-xs flex items-center gap-2">

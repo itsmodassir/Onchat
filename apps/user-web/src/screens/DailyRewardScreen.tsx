@@ -12,6 +12,8 @@ import {
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const AppLink = (Link as any);
+
 const REWARD_SCHEDULE = [
   { day: 1, coins: 50, diamonds: 0, icon: '🪙' },
   { day: 2, coins: 100, diamonds: 0, icon: '🪙' },
@@ -86,12 +88,12 @@ export const DailyRewardScreen = () => {
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 p-8">
       {/* Header */}
       <div className="flex items-center gap-6">
-        <Link 
+        <AppLink 
           to="/" 
           className="w-12 h-12 rounded-2xl bg-slate-900 border border-white/5 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition-all shadow-xl"
         >
           <ChevronLeft className="w-6 h-6" />
-        </Link>
+        </AppLink>
         <div>
           <h1 className="text-4xl font-black tracking-tight text-white mb-1">Daily Rewards</h1>
           <p className="text-slate-500 font-bold uppercase tracking-widest text-xs flex items-center gap-2 text-indigo-400">
