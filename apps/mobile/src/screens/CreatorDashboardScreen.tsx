@@ -26,7 +26,7 @@ const CreatorDashboardScreen = ({ navigation }: any) => {
 
   const fetchStats = async () => {
     try {
-      const { data } = await monetizationApi.getCreatorStats(token!);
+      const { data } = await monetizationApi.getCreatorStats();
       setStats(data);
     } catch (error) {
       console.error('Fetch stats failed', error);
@@ -58,7 +58,7 @@ const CreatorDashboardScreen = ({ navigation }: any) => {
     }
 
     try {
-      await monetizationApi.requestWithdrawal(token!, {
+      await monetizationApi.requestWithdrawal({
         amount,
         method: paymentMethod,
         details: paymentDetails

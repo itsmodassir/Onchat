@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Image,
-  Dimensions, Alert, Animated, SafeAreaView
+  Dimensions, Alert, Animated, SafeAreaView, ActivityIndicator
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ChevronLeft, HelpCircle } from 'lucide-react-native';
 import { useAuthStore } from '../store/authStore';
-import api from '../utils/api';
+import { gameApi } from '../utils/api';
 
 const { width } = Dimensions.get('window');
 
@@ -29,9 +29,8 @@ const GriddyGameScreen = ({ navigation }: any) => {
     setMultiplier(null);
 
     try {
-      const { data } = await api.post('/luck/griddy/play', { betAmount });
+      const { data } = await gameApi.playGriddy(betAmount);
       
-      // Simulate spinning effect
       setTimeout(() => {
         setIsSpinning(false);
         setResultCell(data.result);
@@ -52,7 +51,7 @@ const GriddyGameScreen = ({ navigation }: any) => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#FFF" />
+          <ChevronLeft size={24} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Griddy Luck</Text>
         <View style={styles.coinBalance}>
@@ -76,7 +75,7 @@ const GriddyGameScreen = ({ navigation }: any) => {
               ) : resultCell === cell ? (
                 <Text style={styles.multiplierText}>{multiplier}x</Text>
               ) : (
-                <Ionicons name="help-circle" size={40} color="#334155" />
+                <HelpCircle size={40} color="#334155" />
               )}
             </View>
           ))}
@@ -106,11 +105,6 @@ const GriddyGameScreen = ({ navigation }: any) => {
   );
 };
 
-// ... Helper for ActivityIndicator if needed
-const ActivityIndicator = ({ color }: { color: string }) => (
-  <View style={styles.loader} />
-);
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0D0B1F' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20 },
@@ -132,7 +126,6 @@ const styles = StyleSheet.create({
   playBtn: { width: '100%', height: 60, backgroundColor: '#4DB6AC', borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 5 },
   disabledBtn: { backgroundColor: '#334155' },
   playBtnText: { color: '#FFF', fontSize: 20, fontWeight: 'bold' },
-  loader: { width: 30, height: 30, borderRadius: 15, borderTopWidth: 3, borderTopColor: '#FFD700', borderRightWidth: 3, borderRightColor: 'transparent' }
 });
 
 export default GriddyGameScreen;

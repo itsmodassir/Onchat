@@ -2,53 +2,48 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.recommendationService = void 0;
 const db_1 = require("../utils/db");
-const logger_1 = require("../utils/logger");
 exports.recommendationService = {
-    /**
-     * Generates a "Trending Score" for rooms based on participants and activity.
-     * This is a simplified version of a collaborative filtering / ML ranking model.
-     */
-    async getTrendingRooms(limit = 10) {
-        try {
-            const rooms = await db_1.prisma.room.findMany({
-                where: { status: 'ACTIVE' },
-                include: {
-                    _count: {
-                        select: { participants: true, messages: true }
-                    },
-                    host: { select: { name: true } } // Removed reputationScore since it's mock
-                }
-            });
-            // Algorithm: Score = (Participants * 2) + (Messages * 0.5) + (HostReputation * 1.5)
-            // Decay factor based on creation time could be added here.
-            const scoredRooms = rooms.map((room) => {
-                const participantScore = room._count.participants * 2;
-                const engagementScore = room._count.messages * 0.5;
-                // Host reputation defaults to 1.0 if not explicit in DB schema
-                const hostReputation = room.host?.reputationScore || 1.0;
-                const totalScore = (participantScore + engagementScore) * hostReputation;
-                return {
-                    ...room,
-                    trendingScore: totalScore
-                };
-            });
-            // Sort by trending score descending
-            return scoredRooms.sort((a, b) => b.trendingScore - a.trendingScore).slice(0, limit);
-        }
-        catch (error) {
-            logger_1.logger.error(`Error calculating recommendations: ${error}`);
+    async getUserRecommendations(userId) {
+        const user = await db_1.prisma.user.findUnique({
+            where: { id: userId },
+            select: { interests: true },
+        });
+        if (!user)
             return [];
-        }
+        const userInterests = user.interests || [];
+        // Find rooms that match user interests or are popular
+        const rooms = await db_1.prisma.room.findMany({
+            where: {
+                status: 'ACTIVE',
+            },
+            include: {
+                _count: {
+                    select: { participants: true }
+                },
+                host: {
+                    select: { level: true }
+                }
+            },
+            take: 20
+        });
+        // Scoring algorithm
+        const scoredRooms = rooms.map((room) => {
+            let score = 0;
+            // Interest match (+10 for category, +5 for tags)
+            if (userInterests.includes(room.category))
+                score += 10;
+            const tags = (room.tags || '').split(',').map((i) => i.trim());
+            const matchingTags = tags.filter((tag) => userInterests.includes(tag));
+            score += matchingTags.length * 5;
+            // Popularity match (+1 per participant)
+            score += (room._count?.participants || 0);
+            // Host reputation (+2 per host level)
+            score += (room.host?.level || 1) * 2;
+            return { ...room, recommendationScore: score };
+        });
+        // Sort by score and return top 10
+        return scoredRooms
+            .sort((a, b) => b.recommendationScore - a.recommendationScore)
+            .slice(0, 10);
     },
-    /**
-     * Personalized recommendations based on user's past room history categories.
-     */
-    async getPersonalizedRooms(userId) {
-        logger_1.logger.info(`Fetching personalized AI recommendations for user ${userId}`);
-        // Future Implementation:
-        // 1. Query user's past joined rooms and extract dominant topics/tags.
-        // 2. Vector search (e.g., Pinecone/pgvector) for active rooms matching those interest vectors.
-        // 3. Return ranked list.
-        return await this.getTrendingRooms(5); // Fallback to trending
-    }
 };

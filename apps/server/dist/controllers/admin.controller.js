@@ -63,4 +63,14 @@ exports.adminController = {
             res.status(500).json({ error: 'Internal server error' });
         }
     },
+    async getDetailedAnalytics(req, res) {
+        try {
+            const analytics = await admin_service_1.adminService.getDetailedAnalytics();
+            res.json(analytics);
+        }
+        catch (error) {
+            logger_1.logger.error('ADMIN_GET_DETAILED_ANALYTICS_ERROR:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    },
 };

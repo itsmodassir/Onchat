@@ -9,7 +9,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import {
   ChevronRight, Crown, Gem, ClipboardList, Coins, Heart as HeartIcon,
   CircleUser, ShoppingBag, Briefcase, Headphones, Flame,
-  Settings, LogOut, Users, UserPlus, Trophy,
+  Settings, LogOut, Users, UserPlus, Trophy, HardDrive,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import api from '../utils/api';
@@ -28,7 +28,7 @@ const ProfileScreen = ({ navigation }: any) => {
         if (!token) return;
         try {
           const [userRes, cpRes, agencyRes] = await Promise.all([
-            authApi.me(token),
+            authApi.me(),
             api.get('/cp/status'),
             api.get('/agency/stats')
           ]);
@@ -81,6 +81,7 @@ const ProfileScreen = ({ navigation }: any) => {
     { id: '7', title: 'Griddy Luck', icon: <Trophy size={22} color="#4DB6AC" />, bgColor: '#4DB6AC20', onPress: () => navigation.navigate('GriddyGame') },
     { id: '10', title: 'Lucky Wheel', icon: <Flame size={22} color="#F97316" />, bgColor: '#F9731620', onPress: () => navigation.navigate('LuckyWheel') },
     { id: '11', title: 'My Interests', icon: <HeartIcon size={22} color="#8B5CF6" />, bgColor: '#8B5CF620', onPress: () => navigation.navigate('Interests') },
+    { id: '13', title: 'Virtual Storage', icon: <HardDrive size={22} color="#00C1BB" />, bgColor: '#00C1BB20', onPress: () => navigation.navigate('StorageManager') },
     { id: '12', title: 'Settings', icon: <Settings size={22} color="#F43F5E" />, bgColor: '#F43F5E20', onPress: () => navigation.navigate('Settings') },
   ];
 
@@ -101,7 +102,7 @@ const ProfileScreen = ({ navigation }: any) => {
                     onPress: async (url: string | undefined) => {
                       if (!url) return;
                       try {
-                        const { data } = await authApi.updateProfile(token || '', { avatar: url });
+                        const { data } = await authApi.updateProfile({ avatar: url });
                         setUser(data);
                       } catch {
                         Alert.alert('Error', 'Failed to update avatar');
@@ -133,7 +134,7 @@ const ProfileScreen = ({ navigation }: any) => {
                         onPress: async (name: string | undefined) => {
                           if (!name) return;
                           try {
-                            const { data } = await authApi.updateProfile(token || '', { name });
+                            const { data } = await authApi.updateProfile({ name: name });
                             setUser(data);
                           } catch {
                             Alert.alert('Error', 'Failed to update name');

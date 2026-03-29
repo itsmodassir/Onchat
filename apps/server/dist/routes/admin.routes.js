@@ -10,4 +10,5 @@ router.get('/stats', admin_controller_1.adminController.getStats);
 router.patch('/users/:userId/balance', admin_controller_1.adminController.updateBalance);
 router.post('/users/:userId/add-coins', admin_controller_1.adminController.addCoins);
 router.patch('/users/:userId/reseller', admin_controller_1.adminController.toggleReseller);
+router.get('/analytics/detailed', admin_controller_1.adminController.getDetailedAnalytics);
 exports.default = router;

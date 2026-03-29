@@ -1,10 +1,10 @@
 import { Router } from 'express';
-import { paymentController } from '../controllers/payment.controller';
+import { razorpayController } from '../controllers/razorpay.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
 
 const router = Router();
 
-router.post('/add-coins', authMiddleware, paymentController.addCoins);
-router.post('/send-gift', authMiddleware, paymentController.sendGift);
+router.post('/razorpay/order', authMiddleware, razorpayController.createOrder);
+router.post('/razorpay/verify', authMiddleware, razorpayController.verifyPayment);
 
 export default router;

@@ -8,9 +8,9 @@ import {
   RefreshControl, 
   Image, 
   ScrollView,
-  SafeAreaView,
   Dimensions
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/authStore';
 import { roomApi } from '../utils/api';
 import { Search, Globe, Home as HomeIcon, Trophy, Heart, Users, Music, Gamepad2, PartyPopper, Plus } from 'lucide-react-native';
@@ -30,6 +30,7 @@ const HomeScreen = ({ navigation }: any) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [newRoomTitle, setNewRoomTitle] = useState('');
   const { token, user } = useAuthStore();
+  const insets = useSafeAreaInsets();
 
   const tabs = ['Related', 'Upcoming', 'Hot', 'New'];
 
@@ -43,7 +44,7 @@ const HomeScreen = ({ navigation }: any) => {
         setRooms(data);
         
         // Also fetch recommendations
-        const recResponse = await roomApi.getRecommendedRooms(token!);
+        const recResponse = await roomApi.getRecommendedRooms();
         setRecommendedRooms(recResponse.data);
       }
     } catch (error) {
@@ -60,14 +61,14 @@ const HomeScreen = ({ navigation }: any) => {
   const handleCreateRoom = async () => {
     if (!newRoomTitle.trim()) return;
     try {
-      const { data } = await roomApi.createRoom(token!, { title: newRoomTitle });
+      const { data } = await roomApi.createRoom({ title: newRoomTitle });
       setModalVisible(false);
       setNewRoomTitle('');
       
       // Small timeout to ensure backend processing is complete if needed, 
       // but navigation should be immediate.
       setTimeout(() => {
-        navigation.navigate('Room', { roomId: data.id });
+        navigation.navigate('LiveRoom', { roomId: data.id });
       }, 500);
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.error || 'Could not create room');
@@ -77,7 +78,9 @@ const HomeScreen = ({ navigation }: any) => {
   useEffect(() => {
     fetchRooms();
 
-    const socket = io(SOCKET_URL);
+    const socket = io(SOCKET_URL, {
+      auth: { token }
+    });
     
     socket.on('new-room-active', (newRoom: any) => {
       setRooms((prevRooms: any) => {
@@ -115,7 +118,7 @@ const HomeScreen = ({ navigation }: any) => {
             if (isUpcoming) {
                 Alert.alert('Upcoming Room', `This room starts at ${new Date(item.scheduledAt).toLocaleString()}`);
             } else {
-                navigation.navigate('Room', { roomId: item.id });
+                navigation.navigate('LiveRoom', { roomId: item.id });
             }
         }}
       >
@@ -156,29 +159,6 @@ const HomeScreen = ({ navigation }: any) => {
 
   const Header = () => (
     <View>
-      {/* Search & Language Bar */}
-      <View style={styles.topBar}>
-        <View style={styles.tabContainer}>
-          {tabs.map(tab => (
-            <TouchableOpacity key={tab} onPress={() => setActiveTab(tab)}>
-              <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
-              {activeTab === tab && <View style={styles.activeIndicator} />}
-            </TouchableOpacity>
-          ))}
-        </View>
-        <View style={styles.topIcons}>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Globe size={20} color="#FFF" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}>
-            <Search size={22} color="#FFF" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn}>
-            <HomeIcon size={22} color="#FFF" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
       {/* Recommended for You - Tier 3 */}
       {recommendedRooms.length > 0 && (
         <View style={styles.recommendationSection}>
@@ -193,7 +173,7 @@ const HomeScreen = ({ navigation }: any) => {
               <TouchableOpacity 
                 key={room.id} 
                 style={styles.recCard}
-                onPress={() => navigation.navigate('Room', { roomId: room.id })}
+                onPress={() => navigation.navigate('LiveRoom', { roomId: room.id })}
               >
                 <Image 
                   source={{ uri: room.image || `https://api.dicebear.com/7.x/shapes/svg?seed=${room.id}` }} 
@@ -213,7 +193,7 @@ const HomeScreen = ({ navigation }: any) => {
       )}
 
       {/* Banner */}
-      <TouchableOpacity style={styles.bannerContainer}>
+      <TouchableOpacity style={styles.bannerContainer} onPress={() => navigation.navigate('Store')}>
         <Image 
           source={{ uri: 'https://img.freepik.com/free-vector/abstract-liquid-purple-banner-template_1017-31993.jpg' }} 
           style={styles.bannerImage}
@@ -226,15 +206,24 @@ const HomeScreen = ({ navigation }: any) => {
 
       {/* Shortcuts */}
       <View style={styles.shortcutsRow}>
-        <TouchableOpacity style={[styles.shortcutCard, { backgroundColor: '#F9731630' }]}>
+        <TouchableOpacity 
+          style={[styles.shortcutCard, { backgroundColor: '#F9731630' }]}
+          onPress={() => navigation.navigate('Leaderboard')}
+        >
           <Trophy size={18} color="#F97316" />
           <Text style={styles.shortcutText}>Rank</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.shortcutCard, { backgroundColor: '#EC489930' }]}>
+        <TouchableOpacity 
+          style={[styles.shortcutCard, { backgroundColor: '#EC489930' }]}
+          onPress={() => navigation.navigate('Leaderboard')}
+        >
           <Heart size={18} color="#EC4899" />
           <Text style={styles.shortcutText}>CP</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.shortcutCard, { backgroundColor: '#3B82F630' }]}>
+        <TouchableOpacity 
+          style={[styles.shortcutCard, { backgroundColor: '#3B82F630' }]}
+          onPress={() => navigation.navigate('Family')}
+        >
           <Users size={18} color="#3B82F6" />
           <Text style={styles.shortcutText}>Family</Text>
         </TouchableOpacity>
@@ -243,7 +232,29 @@ const HomeScreen = ({ navigation }: any) => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <View style={[styles.topBar, { paddingTop: insets.top + 10 }]}>
+         <View style={styles.tabContainer}>
+           {tabs.map(tab => (
+             <TouchableOpacity key={tab} onPress={() => setActiveTab(tab)}>
+               <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
+               {activeTab === tab && <View style={styles.activeIndicator} />}
+             </TouchableOpacity>
+           ))}
+         </View>
+         <View style={styles.topIcons}>
+           <TouchableOpacity style={styles.iconBtn}>
+             <Globe size={20} color="#FFF" />
+           </TouchableOpacity>
+           <TouchableOpacity style={styles.iconBtn}>
+             <Search size={22} color="#FFF" />
+           </TouchableOpacity>
+           <TouchableOpacity style={styles.iconBtn}>
+             <HomeIcon size={22} color="#FFF" />
+           </TouchableOpacity>
+         </View>
+      </View>
+
       <FlatList
         data={activeTab === 'Upcoming' ? upcomingRooms : rooms}
         renderItem={renderRoom}
@@ -252,6 +263,7 @@ const HomeScreen = ({ navigation }: any) => {
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00C1BB" />}
       />
+      
       <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
         <Plus color="#FFF" size={30} />
       </TouchableOpacity>
@@ -279,7 +291,7 @@ const HomeScreen = ({ navigation }: any) => {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 };
 

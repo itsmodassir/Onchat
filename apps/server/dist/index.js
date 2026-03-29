@@ -21,6 +21,10 @@ const payment_routes_1 = __importDefault(require("./routes/payment.routes"));
 const gamification_routes_1 = __importDefault(require("./routes/gamification.routes"));
 const moderation_routes_1 = __importDefault(require("./routes/moderation.routes"));
 const monetization_routes_1 = __importDefault(require("./routes/monetization.routes"));
+const cp_routes_1 = __importDefault(require("./routes/cp.routes"));
+const agency_routes_1 = __importDefault(require("./routes/agency.routes"));
+const game_routes_1 = __importDefault(require("./routes/game.routes"));
+const reseller_routes_1 = __importDefault(require("./routes/reseller.routes"));
 const redis_adapter_1 = require("@socket.io/redis-adapter");
 const ioredis_1 = __importDefault(require("ioredis"));
 dotenv_1.default.config();
@@ -59,6 +63,10 @@ app.use('/api/admin', admin_routes_1.default);
 app.use('/api/game', gamification_routes_1.default);
 app.use('/api/moderation', moderation_routes_1.default);
 app.use('/api/monetization', monetization_routes_1.default);
+app.use('/api/cp', cp_routes_1.default);
+app.use('/api/agency', agency_routes_1.default);
+app.use('/api/luck', game_routes_1.default);
+app.use('/api/reseller', reseller_routes_1.default);
 // Root route for visual confirmation
 app.get('/', (req, res) => {
     res.send(`

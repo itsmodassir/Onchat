@@ -28,5 +28,9 @@
   "homepage": "https://github.com/itsmodassir/Onchat#readme",
   "devDependencies": {
     "turbo": "^2.8.21"
+  },
+  "overrides": {
+    "@types/react": "^18.2.55",
+    "@types/react-dom": "^18.2.19"
   }
 }

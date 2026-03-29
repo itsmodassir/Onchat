@@ -55,6 +55,11 @@ model User {
   agencyMembership  AgencyMember?
   griddyBets        GriddyBet[]
 
+  // Virtual Storage Quota (10GB)
+  storageUsed       Float          @default(0)
+  storageQuota      Float          @default(10737418240) // 10GB in bytes
+  media             Media[]
+
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
 }
@@ -226,13 +231,17 @@ model UserAsset {
 }
 
 model Transaction {
-  id        String          @id @default(uuid())
-  userId    String
-  amount    Float
-  type      TransactionType
-  status    String          @default("COMPLETED")
-  user      User            @relation(fields: [userId], references: [id])
-  createdAt DateTime        @default(now())
+  id                String          @id @default(uuid())
+  userId            String
+  amount            Float
+  type              TransactionType
+  status            String          @default("COMPLETED")
+  razorpayOrderId   String?
+  razorpayPaymentId String?
+  razorpaySignature String?
+  notes             String?
+  user              User            @relation(fields: [userId], references: [id])
+  createdAt         DateTime        @default(now())
 
   @@index([userId])
 }
@@ -244,6 +253,7 @@ enum TransactionType {
   GIFT_RECEIVE
   PURCHASE
   WITHDRAWAL
+  RESELLER_TRANSFER
 }
 
 model Otp {
@@ -352,4 +362,17 @@ model GriddyBet {
   result    Int      // The outcome number/slot
   user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now())
+}
+
+model Media {
+  id        String   @id @default(uuid())
+  filename  String
+  path      String
+  size      Float
+  mimetype  String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }

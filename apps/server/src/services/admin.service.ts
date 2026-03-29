@@ -44,11 +44,54 @@ export const adminService = {
       _sum: { amount: true },
     });
 
+    const agencies = await prisma.agency.count();
+    const couples = await prisma.couple.count();
+
     return {
       userCount,
       roomCount,
       familyCount,
+      agencyCount: agencies,
+      coupleCount: couples,
       totalRevenue: transactions._sum.amount || 0,
     };
   },
+
+  async getDetailedAnalytics() {
+    const agencies = await prisma.agency.findMany({
+      include: { 
+        owner: { select: { name: true, shortId: true } },
+        _count: { select: { members: true } }
+      }
+    });
+
+    const cpCouples = await prisma.couple.findMany({
+      include: {
+        user1: { select: { name: true, shortId: true, avatar: true } },
+        user2: { select: { name: true, shortId: true, avatar: true } }
+      },
+      orderBy: { points: 'desc' },
+      take: 20
+    });
+
+    const gameLogs = await prisma.griddyBet.findMany({
+      include: { user: { select: { name: true, shortId: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    });
+
+    const financeLogs = await prisma.transaction.findMany({
+      where: { type: { in: ['RECHARGE', 'WITHDRAWAL', 'RESELLER_TRANSFER'] } },
+      include: { user: { select: { name: true, shortId: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 50
+    });
+
+    return {
+      agencies,
+      cpCouples,
+      gameLogs,
+      financeLogs
+    };
+  }
 };

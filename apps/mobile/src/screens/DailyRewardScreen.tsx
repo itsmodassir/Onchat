@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, SafeAreaView,
   ScrollView, ActivityIndicator, Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { ChevronLeft, CheckCircle2 } from 'lucide-react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
 import { gameApi } from '../utils/api';
@@ -27,7 +27,7 @@ const DailyRewardScreen = () => {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await gameApi.getDailyReward(token || '');
+      const res = await gameApi.getDailyReward();
       setStatus(res.data);
     } catch (e) {
       console.error('Daily reward status error:', e);
@@ -45,7 +45,7 @@ const DailyRewardScreen = () => {
     if (claiming || status?.claimed) return;
     setClaiming(true);
     try {
-      const res = await gameApi.claimDailyReward(token || '');
+      const res = await gameApi.claimDailyReward();
       const { reward, streak } = res.data;
       setStatus((prev: any) => ({ ...prev, claimed: true, streak }));
       Alert.alert(
@@ -74,14 +74,13 @@ const DailyRewardScreen = () => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <ChevronLeft size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>🎁 Daily Rewards</Text>
         <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Streak Banner */}
         <View style={styles.streakBanner}>
           <Text style={styles.streakIcon}>🔥</Text>
           <View>
@@ -92,10 +91,9 @@ const DailyRewardScreen = () => {
           </View>
         </View>
 
-        {/* 7-day Calendar Grid */}
         <View style={styles.grid}>
           {REWARD_SCHEDULE.map((item, idx) => {
-            const dayIndex = idx; // 0-based
+            const dayIndex = idx;
             const isPast = dayIndex < (streak % 7) && status?.claimed;
             const isCurrent = dayIndex === currentDay;
             const isFuture = dayIndex > currentDay;
@@ -112,7 +110,7 @@ const DailyRewardScreen = () => {
               >
                 {isPast && (
                   <View style={styles.checkOverlay}>
-                    <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
+                    <CheckCircle2 size={20} color="#22c55e" />
                   </View>
                 )}
                 <Text style={styles.dayIcon}>{item.icon}</Text>
@@ -126,7 +124,6 @@ const DailyRewardScreen = () => {
           })}
         </View>
 
-        {/* Claim Button */}
         <TouchableOpacity
           style={[styles.claimBtn, (status?.claimed || claiming) && styles.claimedBtn]}
           onPress={claimReward}
@@ -140,7 +137,6 @@ const DailyRewardScreen = () => {
             <Text style={styles.claimBtnText}>🎁 Claim Day {currentDay + 1} Reward</Text>
           )}
         </TouchableOpacity>
-
         <Text style={styles.hint}>Log in daily to maintain your streak and earn bigger rewards!</Text>
       </ScrollView>
     </SafeAreaView>
@@ -152,20 +148,12 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, backgroundColor: '#00C1BB' },
   headerTitle: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   content: { padding: 16 },
-
-  streakBanner: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#1e293b',
-    borderRadius: 16, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: '#FF6B0030',
-  },
+  streakBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1e293b', borderRadius: 16, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: '#FF6B0030' },
   streakIcon: { fontSize: 40, marginRight: 16 },
   streakCount: { color: '#f8fafc', fontSize: 22, fontWeight: 'bold' },
   streakSub: { color: '#64748b', fontSize: 13, marginTop: 2 },
-
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 24 },
-  dayCard: {
-    width: '30%', backgroundColor: '#1e293b', borderRadius: 14,
-    padding: 12, alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: '#334155',
-  },
+  dayCard: { width: '30%', backgroundColor: '#1e293b', borderRadius: 14, padding: 12, alignItems: 'center', marginBottom: 12, borderWidth: 1, borderColor: '#334155' },
   dayCardPast: { borderColor: '#22c55e30', backgroundColor: '#052e1620' },
   dayCardCurrent: { borderColor: '#00C1BB', borderWidth: 2, backgroundColor: '#00C1BB10' },
   dayCardFuture: { opacity: 0.5 },
@@ -174,14 +162,9 @@ const styles = StyleSheet.create({
   dayLabel: { color: '#94a3b8', fontSize: 11, fontWeight: '600' },
   dayCoins: { color: '#f8fafc', fontSize: 13, fontWeight: 'bold', marginTop: 2 },
   dayDiamonds: { color: '#818cf8', fontSize: 11, marginTop: 1 },
-
-  claimBtn: {
-    backgroundColor: '#00C1BB', borderRadius: 28, paddingVertical: 16,
-    alignItems: 'center', marginBottom: 16,
-  },
+  claimBtn: { backgroundColor: '#00C1BB', borderRadius: 28, paddingVertical: 16, alignItems: 'center', marginBottom: 16 },
   claimedBtn: { backgroundColor: '#1e293b', borderWidth: 1, borderColor: '#334155' },
   claimBtnText: { color: '#fff', fontSize: 17, fontWeight: 'bold' },
-
   hint: { color: '#475569', textAlign: 'center', fontSize: 12, lineHeight: 18 },
 });
 

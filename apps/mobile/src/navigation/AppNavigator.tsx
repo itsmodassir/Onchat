@@ -25,6 +25,8 @@ import DailyRewardScreen from '../screens/DailyRewardScreen';
 import CreatorDashboardScreen from '../screens/CreatorDashboardScreen';
 import InterestsScreen from '../screens/InterestsScreen';
 import GriddyGameScreen from '../screens/GriddyGameScreen';
+import CoinSellerPanel from '../screens/CoinSellerPanel';
+import StorageManagerScreen from '../screens/StorageManagerScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -76,7 +78,7 @@ export const AppNavigator = () => {
         ) : (
           <>
             <Stack.Screen name="Main" component={MainTabs} />
-            <Stack.Screen name="Room" component={RoomScreen} />
+            <Stack.Screen name="LiveRoom" component={RoomScreen} />
             <Stack.Screen name="Wallet" component={WalletScreen} />
             <Stack.Screen name="Store" component={StoreScreen} />
             <Stack.Screen name="Family" component={FamilyScreen} />
@@ -87,6 +89,8 @@ export const AppNavigator = () => {
             <Stack.Screen name="CreatorDashboard" component={CreatorDashboardScreen} />
             <Stack.Screen name="Interests" component={InterestsScreen} />
             <Stack.Screen name="GriddyGame" component={GriddyGameScreen} />
+            <Stack.Screen name="CoinSeller" component={CoinSellerPanel} />
+            <Stack.Screen name="StorageManager" component={StorageManagerScreen} />
           </>
         )}
       </Stack.Navigator>

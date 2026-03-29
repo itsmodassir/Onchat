@@ -18,6 +18,9 @@ import monetizationRoutes from './routes/monetization.routes';
 import cpRoutes from './routes/cp.routes';
 import agencyRoutes from './routes/agency.routes';
 import luckRoutes from './routes/game.routes';
+import resellerRoutes from './routes/reseller.routes';
+import storageRoutes from './routes/storage.routes';
+import path from 'path';
 
 import { createAdapter } from '@socket.io/redis-adapter';
 import Redis from 'ioredis';
@@ -64,6 +67,11 @@ app.use('/api/monetization', monetizationRoutes);
 app.use('/api/cp', cpRoutes);
 app.use('/api/agency', agencyRoutes);
 app.use('/api/luck', luckRoutes);
+app.use('/api/reseller', resellerRoutes);
+app.use('/api/storage', storageRoutes);
+
+// Static Media Serving
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Root route for visual confirmation
 app.get('/', (req, res) => {

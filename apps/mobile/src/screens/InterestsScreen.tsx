@@ -39,7 +39,7 @@ const InterestsScreen = ({ navigation }: any) => {
 
     setLoading(true);
     try {
-      const { data } = await socialApi.updateInterests(token!, selected);
+      const { data } = await socialApi.updateInterests(selected);
       setUser(data);
       Alert.alert('Success', 'Interests updated!');
       navigation.goBack();

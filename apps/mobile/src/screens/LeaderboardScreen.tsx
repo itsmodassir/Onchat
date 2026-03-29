@@ -1,9 +1,10 @@
 import React, { useState, useCallback } from 'react';
-import {
+import { 
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  SafeAreaView, Image, ActivityIndicator, RefreshControl,
+  Image, ActivityIndicator, RefreshControl,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ChevronLeft, Trophy } from 'lucide-react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
 import { gameApi } from '../utils/api';
@@ -24,7 +25,7 @@ const LeaderboardScreen = () => {
 
   const fetchLeaderboard = useCallback(async () => {
     try {
-      const res = await gameApi.getLeaderboard(token || '', activeTab);
+      const res = await gameApi.getLeaderboard(activeTab);
       setData(res.data);
     } catch (e) {
       console.error('Leaderboard error:', e);
@@ -44,7 +45,6 @@ const LeaderboardScreen = () => {
 
   const renderPodium = () => (
     <View style={styles.podium}>
-      {/* 2nd Place */}
       {top3[1] && (
         <View style={[styles.podiumItem, { marginTop: 30 }]}>
           <Text style={styles.crownIcon}>{CROWN_ICONS[1]}</Text>
@@ -58,7 +58,6 @@ const LeaderboardScreen = () => {
           </View>
         </View>
       )}
-      {/* 1st Place */}
       {top3[0] && (
         <View style={styles.podiumItem}>
           <Text style={[styles.crownIcon, { fontSize: 32 }]}>{CROWN_ICONS[0]}</Text>
@@ -72,7 +71,6 @@ const LeaderboardScreen = () => {
           </View>
         </View>
       )}
-      {/* 3rd Place */}
       {top3[2] && (
         <View style={[styles.podiumItem, { marginTop: 50 }]}>
           <Text style={styles.crownIcon}>{CROWN_ICONS[2]}</Text>
@@ -107,17 +105,18 @@ const LeaderboardScreen = () => {
     );
   };
 
+  const insets = useSafeAreaInsets();
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <ChevronLeft size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>🏆 Leaderboard</Text>
         <View style={{ width: 24 }} />
       </View>
 
-      {/* Tabs */}
       <View style={styles.tabs}>
         {TABS.map((t) => (
           <TouchableOpacity
@@ -144,7 +143,7 @@ const LeaderboardScreen = () => {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchLeaderboard(); }} tintColor="#00C1BB" />}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -157,7 +156,6 @@ const styles = StyleSheet.create({
   activeTab: { backgroundColor: '#00C1BB20', borderWidth: 1, borderColor: '#00C1BB' },
   tabText: { color: '#64748b', fontSize: 12, fontWeight: '600' },
   activeTabText: { color: '#00C1BB' },
-
   podium: { flexDirection: 'row', justifyContent: 'center', alignItems: 'flex-end', paddingTop: 20, paddingBottom: 10, paddingHorizontal: 20 },
   podiumItem: { flex: 1, alignItems: 'center', marginHorizontal: 6 },
   crownIcon: { fontSize: 24, marginBottom: 4 },
@@ -165,7 +163,6 @@ const styles = StyleSheet.create({
   podiumName: { color: '#f8fafc', fontSize: 12, marginTop: 6, textAlign: 'center' },
   podiumValueBg: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3, marginTop: 4 },
   podiumValue: { fontSize: 13, fontWeight: 'bold' },
-
   row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#1e293b' },
   myRow: { backgroundColor: '#00C1BB10' },
   rankNum: { color: '#64748b', width: 32, fontSize: 14, fontWeight: 'bold' },
