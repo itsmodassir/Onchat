@@ -73,4 +73,23 @@ export class UserService {
       data: { reputationScore: { increment: points } }
     });
   }
+
+  /**
+   * Get top creators for dashboard scroller
+   */
+  static async getTopCreators() {
+    return prisma.user.findMany({
+      take: 10,
+      orderBy: {
+        level: 'desc'
+      },
+      select: {
+        id: true,
+        name: true,
+        avatar: true,
+        level: true,
+        shortId: true
+      }
+    });
+  }
 }

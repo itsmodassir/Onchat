@@ -13,4 +13,7 @@ router.get('/search', authMiddleware, userController.searchUsers);
 // Profile updates
 router.patch('/bio', authMiddleware, userController.updateBio);
 
+// Social Discovery
+router.get('/top-creators', authMiddleware, userController.getTopCreators);
+
 export default router;

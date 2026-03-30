@@ -10,4 +10,6 @@ router.get('/profile/:query', auth_middleware_1.authMiddleware, user_controller_
 router.get('/search', auth_middleware_1.authMiddleware, user_controller_1.userController.searchUsers);
 // Profile updates
 router.patch('/bio', auth_middleware_1.authMiddleware, user_controller_1.userController.updateBio);
+// Social Discovery
+router.get('/top-creators', auth_middleware_1.authMiddleware, user_controller_1.userController.getTopCreators);
 exports.default = router;

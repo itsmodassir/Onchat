@@ -47,5 +47,17 @@ export const userController = {
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }
+  },
+
+  /**
+   * Get top creators
+   */
+  async getTopCreators(req: Request, res: Response) {
+    try {
+      const creators = await UserService.getTopCreators();
+      res.json(creators);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
   }
 };
