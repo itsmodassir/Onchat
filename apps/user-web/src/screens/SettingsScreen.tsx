@@ -83,8 +83,8 @@ export const SettingsScreen = () => {
                   </button>
                </div>
                <div>
-                  <h2 className="text-xl font-black text-white">{user?.name}</h2>
-                  <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mt-1">UID: {user?.shortId || 'Unknown'}</p>
+                  <h2 className="text-xl font-black text-white">{user?.name || 'Identity Pending'}</h2>
+                  <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mt-1">UID: {user?.shortId || 'UNAUTHORIZED'}</p>
                </div>
                <div className="pt-4 border-t border-white/5 space-y-4">
                   <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
@@ -115,7 +115,7 @@ export const SettingsScreen = () => {
                   <SettingRow 
                      icon={User} 
                      label="Identity Name" 
-                     value={user?.name || '—'} 
+                     value={user?.name || 'Unset Identity'} 
                      onEdit={() => handleEdit('name', user?.name || '')}
                   />
                   <SettingRow 
@@ -127,7 +127,7 @@ export const SettingsScreen = () => {
                   <SettingRow 
                      icon={Mail} 
                      label="Primary Vector (Email)" 
-                     value={user?.email || 'unlinked@terminal.fun'} 
+                     value={user?.email || 'identity@unresolved.network'} 
                   />
                </div>
             </section>
