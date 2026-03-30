@@ -39,7 +39,7 @@ exports.socialController = {
     async follow(req, res) {
         try {
             const { userId } = req.body;
-            const followerId = req.user.id;
+            const followerId = req.user.userId;
             const result = await social_service_1.socialService.follow(followerId, userId);
             res.status(201).json(result);
         }
@@ -50,7 +50,7 @@ exports.socialController = {
     async unfollow(req, res) {
         try {
             const { userId } = req.params;
-            const followerId = req.user.id;
+            const followerId = req.user.userId;
             await social_service_1.socialService.unfollow(followerId, userId);
             res.status(204).send();
         }
@@ -80,7 +80,7 @@ exports.socialController = {
     },
     async getFriends(req, res) {
         try {
-            const userId = req.user.id;
+            const userId = req.user.userId;
             const friends = await social_service_1.socialService.getFriends(userId);
             res.json(friends);
         }
@@ -91,7 +91,7 @@ exports.socialController = {
     async getConversations(req, res) {
         try {
             const { prisma } = await Promise.resolve().then(() => __importStar(require('../utils/db')));
-            const userId = req.user.id;
+            const userId = req.user.userId;
             // Get unique users the current user has chatted with
             const conversations = await prisma.privateMessage.findMany({
                 where: {
@@ -128,7 +128,7 @@ exports.socialController = {
     async getMessageHistory(req, res) {
         try {
             const { prisma } = await Promise.resolve().then(() => __importStar(require('../utils/db')));
-            const userId = req.user.id;
+            const userId = req.user.userId;
             const { targetUserId } = req.params;
             const messages = await prisma.privateMessage.findMany({
                 where: {

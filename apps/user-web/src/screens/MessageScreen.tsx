@@ -122,9 +122,25 @@ export const MessageScreen = () => {
   };
 
   const handleStartChat = (targetUser: any) => {
-    setSelectedUser(targetUser);
+    // Normalize user object structure
+    const normalizedUser = {
+      id: targetUser.id,
+      name: targetUser.name,
+      avatar: targetUser.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${targetUser.id}`,
+      shortId: targetUser.shortId
+    };
+    
+    setSelectedUser(normalizedUser);
+    
+    // Clear search and add to conversations if not present
     setSearchQuery('');
     setSearchResults([]);
+
+    // Check if this user is already in our conversations locally
+    const exists = conversations.find(c => c.id === normalizedUser.id);
+    if (!exists) {
+      setConversations(prev => [normalizedUser, ...prev]);
+    }
   };
 
   const socialCategories = [
@@ -232,7 +248,7 @@ export const MessageScreen = () => {
                whileHover={{ x: 4 }}
                key={conv.id}
                onClick={() => setSelectedUser(conv)}
-               className={`glass-card p-4 rounded-3xl border-white/5 flex items-center gap-4 cursor-pointer transition-all relative ${selectedUser?.id === conv.id ? 'bg-indigo-600/10 border-indigo-500/30' : 'hover:bg-slate-900/60'} ${conv.unread > 0 ? 'border-l-4 border-l-indigo-500' : ''}`}
+               className={`glass-card p-4 rounded-3xl border-white/5 flex items-center gap-4 cursor-pointer transition-all relative ${selectedUser?.id === conv.id ? 'bg-indigo-600/20 border-indigo-500/40 shadow-2xl shadow-indigo-600/10' : 'hover:bg-slate-900/60'} ${conv.unread > 0 ? 'border-l-4 border-l-indigo-500' : ''}`}
              >
                 <div className="relative">
                    <img src={conv.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${conv.id}`} alt={conv.name} className="w-14 h-14 rounded-2xl bg-slate-800 object-cover" />

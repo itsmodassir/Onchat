@@ -44,8 +44,8 @@ export const ProfileScreen = () => {
       setEditData({ name: data.name || '', bio: data.bio || '' });
 
       // Check following status if not self
-      if (data.id !== currentUser?.id) {
-        const { data: following } = await api.get(`/social/following/${currentUser?.id}`);
+      if (data.id !== currentUser?.id && currentUser?.id) {
+        const { data: following } = await api.get(`/social/following/${currentUser.id}`);
         setIsFollowing(following.some((f: any) => f.followingId === data.id));
       }
     } catch (error) {
@@ -71,18 +71,38 @@ export const ProfileScreen = () => {
   };
 
   const handleFollowToggle = async () => {
+    if (!profileUser) return;
+    
+    // Optimistic Update
+    const prevFollowing = isFollowing;
+    const prevFollowers = profileUser._count.followers;
+    
+    setIsFollowing(!isFollowing);
+    setProfileUser({
+      ...profileUser,
+      _count: {
+        ...profileUser._count,
+        followers: isFollowing ? prevFollowers - 1 : prevFollowers + 1
+      }
+    });
+
     try {
-      if (isFollowing) {
+      if (prevFollowing) {
         await api.delete(`/social/unfollow/${profileUser.id}`);
-        setIsFollowing(false);
-        setProfileUser({ ...profileUser, _count: { ...profileUser._count, followers: profileUser._count.followers - 1 } });
       } else {
         await api.post('/social/follow', { userId: profileUser.id });
-        setIsFollowing(true);
-        setProfileUser({ ...profileUser, _count: { ...profileUser._count, followers: profileUser._count.followers + 1 } });
       }
     } catch (error) {
       console.error('Follow toggle failed:', error);
+      // Rollback on error
+      setIsFollowing(prevFollowing);
+      setProfileUser({
+        ...profileUser,
+        _count: {
+          ...profileUser._count,
+          followers: prevFollowers
+        }
+      });
     }
   };
 
