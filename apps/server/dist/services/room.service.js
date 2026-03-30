@@ -48,7 +48,14 @@ exports.roomService = {
         });
         if (!room)
             throw new Error('Room not found');
-        // Check if player is already a participant
+        // Enforce SINGLE ROOM JOIN: Remove user from all other rooms first
+        await db_1.prisma.participant.deleteMany({
+            where: {
+                userId,
+                roomId: { not: roomId } // Remove from any room except the one they are joining
+            }
+        });
+        // Check if player is already a participant in THIS room
         const existingParticipant = await db_1.prisma.participant.findUnique({
             where: {
                 userId_roomId: { userId, roomId },
@@ -144,6 +151,21 @@ exports.roomService = {
         });
     },
     async leaveRoom(roomId, userId) {
+        // 1. Get room details to check if this user is the host
+        const room = await db_1.prisma.room.findUnique({
+            where: { id: roomId },
+            select: { hostId: true }
+        });
+        // 2. If host is leaving, mark the room as INACTIVE
+        if (room && room.hostId === userId) {
+            await db_1.prisma.room.update({
+                where: { id: roomId },
+                data: { status: 'INACTIVE' }
+            });
+            logger_1.logger.info(`Host ${userId} left. Room ${roomId} set to INACTIVE.`);
+            eventBus_1.eventBus.publish('ROOM_CLOSED', { roomId });
+        }
+        // 3. Remove the participant record
         return await db_1.prisma.participant.delete({
             where: {
                 userId_roomId: { userId, roomId },
