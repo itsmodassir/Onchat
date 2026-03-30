@@ -114,5 +114,37 @@ export const adminController = {
       logger.error('ADMIN_GET_ACTIVITY_STREAM_ERROR:', error);
       res.status(500).json({ error: 'Internal server error' });
     }
+  },
+
+  async getSettings(req: Request, res: Response) {
+    try {
+      const settings = await adminService.getSystemConfigs();
+      res.json(settings);
+    } catch (error: any) {
+      logger.error('ADMIN_GET_SETTINGS_ERROR:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+
+  async updateSettings(req: Request, res: Response) {
+    try {
+      const { key, value } = req.body;
+      const setting = await adminService.updateSystemConfig(key, value);
+      res.json(setting);
+    } catch (error: any) {
+      logger.error('ADMIN_UPDATE_SETTINGS_ERROR:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+
+  async getIdentityLogs(req: Request, res: Response) {
+    try {
+      const { userId } = req.params;
+      const logs = await adminService.getIdentityLogs(userId);
+      res.json(logs);
+    } catch (error: any) {
+      logger.error('ADMIN_GET_IDENTITY_LOGS_ERROR:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
   }
 };

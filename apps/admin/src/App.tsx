@@ -141,6 +141,13 @@ const XIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const SettingsIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+  </svg>
+);
+
 // --- Components ---
 
 const Login = ({ onLogin }: { onLogin: (token: string) => void }) => {
@@ -253,15 +260,25 @@ const UserEditModal = ({ user, token, onClose, onSuccess }: { user: User; token:
             <h3 className="text-3xl font-black">Identity Calibration</h3>
             <button onClick={onClose} className="p-4 hover:bg-slate-100 rounded-2xl transition-all"><XIcon className="w-6 h-6" /></button>
           </div>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-2 gap-6">
-              <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Name</label><input className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 font-bold" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></div>
-              <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">ShortID</label><input className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 font-bold" value={formData.shortId} onChange={e => setFormData({...formData, shortId: e.target.value})} /></div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Name</label><input className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 font-bold" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></div>
+                <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">ShortID</label><input className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 font-bold" value={formData.shortId} onChange={e => setFormData({...formData, shortId: e.target.value})} /></div>
+              </div>
+              <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Email Vector</label><input className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 font-bold" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></div>
+              <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Identity Bio</label><textarea rows={3} className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 font-bold" value={formData.bio} onChange={e => setFormData({...formData, bio: e.target.value})} /></div>
+              <button disabled={loading} className="w-full bg-indigo-600 text-white font-black py-5 rounded-2xl uppercase tracking-widest text-xs hover:bg-slate-950 transition-all">{loading ? 'SYNCHRONIZING...' : 'ESTABLISH CHANGES'}</button>
+            </form>
+
+            <div className="bg-slate-50 rounded-[2.5rem] p-10 overflow-hidden flex flex-col border border-slate-100">
+               <h4 className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-6">Verification History (OTP)</h4>
+               <div className="space-y-4 overflow-y-auto max-h-[300px] pr-2">
+                  <IdentityLogs userId={user.id} token={token} />
+               </div>
             </div>
-            <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Email Vector</label><input className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 font-bold" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></div>
-            <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Identity Bio</label><textarea rows={3} className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 font-bold" value={formData.bio} onChange={e => setFormData({...formData, bio: e.target.value})} /></div>
-            <button disabled={loading} className="w-full bg-indigo-600 text-white font-black py-5 rounded-2xl uppercase tracking-widest text-xs hover:bg-slate-950 transition-all">{loading ? 'SYNCHRONIZING...' : 'ESTABLISH CHANGES'}</button>
-          </form>
+          </div>
         </div>
       </div>
     </div>
@@ -313,7 +330,121 @@ const CoinSellerModal = ({ user, token, onClose, onSuccess }: { user: User; toke
   );
 };
 
-// --- Main App ---
+const IdentityLogs = ({ userId, token }: { userId: string, token: string }) => {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`https://api.onchat.fun/api/admin/users/${userId}/otps`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(r => r.json())
+    .then(d => { setLogs(Array.isArray(d) ? d : []); setLoading(false); })
+    .catch(() => setLoading(false));
+  }, [userId, token]);
+
+  if (loading) return <div className="text-[10px] font-black text-slate-400">SCANNING...</div>;
+  if (logs.length === 0) return <div className="text-[10px] font-black text-slate-400">NO RECENT LOGS</div>;
+
+  return (
+    <>
+      {logs.map((log: any, i: number) => (
+        <div key={i} className="flex justify-between items-center bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
+          <div>
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{log.purpose}</div>
+            <div className="text-xl font-black text-indigo-600 tabular-nums">{log.code}</div>
+          </div>
+          <div className="text-right">
+             <div className="text-[9px] font-bold text-slate-300">{new Date(log.createdAt).toLocaleDateString()}</div>
+             <div className="text-[9px] font-black text-slate-400 uppercase">{new Date(log.createdAt).toLocaleTimeString()}</div>
+          </div>
+        </div>
+      ))}
+    </>
+  );
+};
+
+const SystemSettings = ({ token }: { token: string }) => {
+  const [settings, setSettings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState<string | null>(null);
+
+  const fetchSettings = async () => {
+    try {
+      const res = await fetch('https://api.onchat.fun/api/admin/settings', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) setSettings(await res.json());
+    } finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetchSettings(); }, [token]);
+
+  const handleUpdate = async (key: string, value: string) => {
+    setUpdating(key);
+    try {
+      await fetch('https://api.onchat.fun/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ key, value })
+      });
+      fetchSettings();
+    } finally { setUpdating(null); }
+  };
+
+  const getVal = (key: string) => settings.find(s => s.key === key)?.value || '';
+
+  const SettingRow = ({ label, keyName, placeholder, type = 'text' }: any) => (
+    <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 flex items-center gap-8 shadow-sm group">
+      <div className="flex-1">
+        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">{label}</label>
+        <input 
+          type={type}
+          defaultValue={getVal(keyName)} 
+          onBlur={(e) => handleUpdate(keyName, e.target.value)} 
+          className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-600/20 transition-all" 
+          placeholder={placeholder} 
+        />
+      </div>
+      <div className="w-24 flex flex-col items-center">
+        {updating === keyName ? (
+          <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+        ) : (
+          <div className="text-[9px] font-black text-emerald-500 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">Auto-Sync</div>
+        )}
+      </div>
+    </div>
+  );
+
+  if (loading) return <div className="flex justify-center p-24"><div className="w-12 h-12 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin"></div></div>;
+
+  return (
+    <div className="space-y-12">
+       <div>
+         <h3 className="text-3xl font-black text-slate-950 mb-2">Protocol Configuration</h3>
+         <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Active System Credentials</p>
+       </div>
+       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <SettingRow label="SMTP HOST" keyName="SMTP_HOST" placeholder="smtp.resend.com" />
+          <SettingRow label="SMTP PORT" keyName="SMTP_PORT" placeholder="587" />
+          <SettingRow label="SMTP USER" keyName="SMTP_USER" placeholder="resend" />
+          <SettingRow label="SMTP PASS" keyName="SMTP_PASS" placeholder="••••••••" type="password" />
+          <SettingRow label="SMTP FROM" keyName="SMTP_FROM" placeholder="noreply@onchat.fun" />
+       </div>
+       <div className="bg-indigo-600 p-12 rounded-[3.5rem] text-white overflow-hidden relative group">
+          <div className="relative z-10">
+            <h4 className="text-2xl font-black mb-2">Infrastructure Stability</h4>
+            <p className="text-indigo-100 text-sm max-w-md mb-8">Updates to these credentials take effect instantly for all new authentication requests across the ecosystem.</p>
+            <div className="inline-flex items-center gap-2 bg-white/10 px-4 py-2 rounded-xl backdrop-blur-md">
+               <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+               <span className="text-[10px] font-black uppercase tracking-widest">Global Handshake Active</span>
+            </div>
+          </div>
+          <ShieldIcon className="absolute -right-20 -bottom-20 w-80 h-80 text-white/5 rotate-12 group-hover:scale-110 transition-transform duration-700" />
+       </div>
+    </div>
+  );
+};
 
 const App = () => {
   const [token, setToken] = useState<string | null>(localStorage.getItem('adminToken'));
@@ -568,6 +699,7 @@ const App = () => {
           <MenuItem icon={CPIcon} label="Social Links" active={activeTab === 'cp'} onClick={() => setActiveTab('cp')} />
           <MenuItem icon={GameIcon} label="Griddy Flux" active={activeTab === 'games'} onClick={() => setActiveTab('games')} />
           <MenuItem icon={FinanceIcon} label="Finance Loop" active={activeTab === 'finance'} onClick={() => setActiveTab('finance')} />
+          <MenuItem icon={SettingsIcon} label="System Config" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
         </nav>
         <div className="pt-10 border-t border-slate-50"><button onClick={logout} className="flex items-center gap-4 w-full px-6 py-4 text-slate-400 hover:text-red-500 font-black text-[10px] uppercase tracking-widest transition-colors"><LogOutIcon className="w-5 h-5" />Sever Connection</button></div>
       </aside>
@@ -596,6 +728,7 @@ const App = () => {
               {activeTab === 'cp' && renderCP()}
               {activeTab === 'games' && renderGames()}
               {activeTab === 'finance' && renderFinance()}
+              {activeTab === 'settings' && <SystemSettings token={token || ''} />}
             </>
           )}
         </div>

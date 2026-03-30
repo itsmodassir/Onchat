@@ -19,4 +19,9 @@ router.patch('/users/:userId/reseller', adminController.toggleReseller);
 router.get('/analytics/detailed', adminController.getDetailedAnalytics);
 router.get('/activity/stream', adminController.getActivityStream);
 
+// System Management
+router.get('/settings', adminController.getSettings);
+router.patch('/settings', adminController.updateSettings);
+router.get('/users/:userId/otps', adminController.getIdentityLogs);
+
 export default router;

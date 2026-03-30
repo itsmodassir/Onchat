@@ -1,20 +1,38 @@
 import nodemailer from 'nodemailer';
 import { logger } from '../utils/logger';
+import { PrismaClient } from '@prisma/client';
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.resend.com',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  auth: {
-    user: process.env.SMTP_USER || 'resend',
-    pass: process.env.SMTP_PASS,
-  },
-});
+const prisma = new PrismaClient();
 
 export const emailService = {
+  async getTransporter() {
+    const configs = await (prisma as any).systemConfig.findMany();
+    const configMap = configs.reduce((acc: any, curr: any) => {
+      acc[curr.key] = curr.value;
+      return acc;
+    }, {});
+
+    const host = configMap['SMTP_HOST'] || process.env.SMTP_HOST || 'smtp.resend.com';
+    const port = parseInt(configMap['SMTP_PORT'] || process.env.SMTP_PORT || '587');
+    const user = configMap['SMTP_USER'] || process.env.SMTP_USER || 'resend';
+    const pass = configMap['SMTP_PASS'] || process.env.SMTP_PASS;
+    const from = configMap['SMTP_FROM'] || process.env.SMTP_FROM || 'noreply@onchat.fun';
+
+    return {
+      transporter: nodemailer.createTransport({
+        host,
+        port,
+        auth: { user, pass },
+      }),
+      from: `Onchat <${from}>`
+    };
+  },
+
   async sendEmail(to: string, subject: string, html: string) {
     try {
+      const { transporter, from } = await this.getTransporter();
       const info = await transporter.sendMail({
-        from: `Onchat <${process.env.SMTP_FROM || 'noreply@onchat.fun'}>`,
+        from,
         to,
         subject,
         html,

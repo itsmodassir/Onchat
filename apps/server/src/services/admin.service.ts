@@ -137,5 +137,28 @@ export const adminService = {
     ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
     return stream;
+  },
+
+  async getSystemConfigs() {
+    return (prisma as any).systemConfig.findMany();
+  },
+
+  async updateSystemConfig(key: string, value: string) {
+    return (prisma as any).systemConfig.upsert({
+      where: { key },
+      update: { value },
+      create: { key, value }
+    });
+  },
+
+  async getIdentityLogs(userId: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new Error('Identity not found');
+    
+    return (prisma as any).otp.findMany({
+      where: { email: user.email },
+      orderBy: { createdAt: 'desc' },
+      take: 20
+    });
   }
 };
