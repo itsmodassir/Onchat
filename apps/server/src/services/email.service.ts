@@ -38,8 +38,9 @@ export const emailService = {
       logger.info(`Email sent to ${to}: ${info.messageId}`);
       return true;
     } catch (error: any) {
-      logger.error(`SMTP_ERROR sending email to ${to}: ${JSON.stringify(error?.response || error?.message || error)}`);
-      return false;
+      const errorMsg = error?.response || error?.message || error;
+      logger.error(`SMTP_ERROR sending email to ${to}: ${JSON.stringify(errorMsg)}`);
+      throw new Error(`SMTP_FAILURE: ${errorMsg}`);
     }
   },
 
