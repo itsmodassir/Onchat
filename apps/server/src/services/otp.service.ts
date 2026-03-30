@@ -38,10 +38,13 @@ export const otpService = {
       }
     });
 
-    // Run email delivery without awaiting to prevent UI timeouts
-    emailService.sendOtpEmail(email, code, purpose).catch(err => {
-      logger.error(`[ASYNC_OTP_ERROR] Background delivery failed for ${email}: ${err.message}`);
-    });
+    // Run email delivery and await it to catch infrastructure errors
+    try {
+      await emailService.sendOtpEmail(email, code, purpose);
+    } catch (err: any) {
+      logger.error(`[OTP_DELIVERY_FAILURE] Protocol error for ${email}: ${err.message}`);
+      throw new Error(`Email delivery failed: ${err.message}`);
+    }
 
     return otp;
   },
