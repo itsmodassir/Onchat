@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { 
   Home, Search, Wallet, User, Store, MessageSquare, 
   Trophy, LogOut, ShieldCheck, Gift, Users, 
@@ -12,7 +13,20 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const AppLink = Link as any;
 
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    if (media.matches !== matches) setMatches(media.matches);
+    const listener = () => setMatches(media.matches);
+    media.addEventListener('change', listener);
+    return () => media.removeEventListener('change', listener);
+  }, [matches, query]);
+  return matches;
+}
+
 function cn(...inputs: ClassValue[]) {
+
   return twMerge(clsx(inputs));
 }
 
@@ -61,25 +75,53 @@ const SidebarItem = ({ to, icon: Icon, label, collapsed }: { to: string; icon: a
 };
 
 export const Sidebar = () => {
-  const { user, logout, sidebarCollapsed: collapsed, toggleSidebar: toggle } = useStore();
+  const { user, logout, sidebarCollapsed: collapsed, toggleSidebar: toggle, mobileMenuOpen, setMobileMenuOpen } = useStore();
+  const isMobile = useMediaQuery('(max-width: 767px)');
+
+  // For responsive navigation logic: on mobile, tapping a link should close the menu
+  const handleMobileNav = () => {
+    if (isMobile) setMobileMenuOpen(false);
+  };
 
   return (
-    <motion.aside 
-      initial={false}
-      animate={{ 
-        width: collapsed ? 96 : 320,
-        padding: collapsed ? "24px 12px" : "32px"
-      }}
-      transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-      className="h-screen fixed left-0 top-0 nav-blur flex flex-col z-50 border-r border-white/5"
-    >
-      {/* Neural Toggle Button */}
-      <button 
-        onClick={toggle}
-        className="absolute -right-4 top-12 w-8 h-8 rounded-full bg-slate-900 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:border-indigo-500/50 shadow-2xl transition-all z-[60]"
+    <>
+      <AnimatePresence>
+        {isMobile && mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setMobileMenuOpen(false)}
+            className="fixed inset-0 z-[60] bg-[#020617]/80 backdrop-blur-sm"
+          />
+        )}
+      </AnimatePresence>
+
+      <motion.aside 
+        initial={false}
+        variants={{
+          desktopExpanded: { width: 320, padding: "32px", x: 0 },
+          desktopCollapsed: { width: 96, padding: "24px 12px", x: 0 },
+          mobileOpen: { width: 320, padding: "32px", x: 0 },
+          mobileClosed: { width: 320, padding: "32px", x: "-100%" }
+        }}
+        animate={
+          isMobile 
+            ? (mobileMenuOpen ? 'mobileOpen' : 'mobileClosed')
+            : (collapsed ? 'desktopCollapsed' : 'desktopExpanded')
+        }
+        transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+        className="h-[100dvh] fixed left-0 top-0 nav-blur flex flex-col z-[70] border-r border-white/5 shadow-2xl md:shadow-none"
       >
-        {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
-      </button>
+        {/* Neural Toggle Button (Desktop Only) */}
+        {!isMobile && (
+          <button 
+            onClick={toggle}
+            className="absolute -right-4 top-12 w-8 h-8 rounded-full bg-slate-900 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white hover:border-indigo-500/50 shadow-2xl transition-all z-[60]"
+          >
+            {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+          </button>
+        )}
 
       {user && (
         <AppLink to="/profile" className={cn(
@@ -117,70 +159,70 @@ export const Sidebar = () => {
       )}
 
       <nav className="flex-1 space-y-8 overflow-y-auto no-scrollbar py-2">
-        <div>
-          {!collapsed && <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.25em] px-6 mb-4">Discovery</p>}
-          <div className={cn("space-y-1", collapsed ? "px-0" : "")}>
-            <SidebarItem to="/" icon={Home} label="Feed" collapsed={collapsed} />
-            <SidebarItem to="/search" icon={Search} label="Explore" collapsed={collapsed} />
-            <SidebarItem to="/daily-reward" icon={Gift} label="Daily Gifts" collapsed={collapsed} />
-            <SidebarItem to="/family" icon={Users} label="Dynasty" collapsed={collapsed} />
+        <div onClick={handleMobileNav}>
+          {(!collapsed || isMobile) && <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.25em] px-6 mb-4">Discovery</p>}
+          <div className={cn("space-y-1", (collapsed && !isMobile) ? "px-0" : "")}>
+            <SidebarItem to="/" icon={Home} label="Feed" collapsed={collapsed && !isMobile} />
+            <SidebarItem to="/search" icon={Search} label="Explore" collapsed={collapsed && !isMobile} />
+            <SidebarItem to="/daily-reward" icon={Gift} label="Daily Gifts" collapsed={collapsed && !isMobile} />
+            <SidebarItem to="/family" icon={Users} label="Dynasty" collapsed={collapsed && !isMobile} />
           </div>
         </div>
 
-        <div>
-          {!collapsed && <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.25em] px-6 mb-4">Personal</p>}
-          <div className={cn("space-y-1", collapsed ? "px-0" : "")}>
-            <SidebarItem to="/profile" icon={User} label="Identity" collapsed={collapsed} />
-            <SidebarItem to="/wallet" icon={Wallet} label="Vault" collapsed={collapsed} />
-            <SidebarItem to="/creator" icon={TrendingUp} label="Studio" collapsed={collapsed} />
-            <SidebarItem to="/messages" icon={MessageSquare} label="Comms" collapsed={collapsed} />
-            <SidebarItem to="/settings" icon={Settings} label="Portal Settings" collapsed={collapsed} />
-            <SidebarItem to="/storage" icon={HardDrive} label="VFS Vault" collapsed={collapsed} />
-            <SidebarItem to="/interests" icon={Target} label="Neural Match" collapsed={collapsed} />
+        <div onClick={handleMobileNav}>
+          {(!collapsed || isMobile) && <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.25em] px-6 mb-4">Personal</p>}
+          <div className={cn("space-y-1", (collapsed && !isMobile) ? "px-0" : "")}>
+            <SidebarItem to="/profile" icon={User} label="Identity" collapsed={collapsed && !isMobile} />
+            <SidebarItem to="/wallet" icon={Wallet} label="Vault" collapsed={collapsed && !isMobile} />
+            <SidebarItem to="/creator" icon={TrendingUp} label="Studio" collapsed={collapsed && !isMobile} />
+            <SidebarItem to="/messages" icon={MessageSquare} label="Comms" collapsed={collapsed && !isMobile} />
+            <SidebarItem to="/settings" icon={Settings} label="Portal Settings" collapsed={collapsed && !isMobile} />
+            <SidebarItem to="/storage" icon={HardDrive} label="VFS Vault" collapsed={collapsed && !isMobile} />
+            <SidebarItem to="/interests" icon={Target} label="Neural Match" collapsed={collapsed && !isMobile} />
           </div>
         </div>
 
-        <div>
-          {!collapsed && <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.25em] px-6 mb-4">Market</p>}
-          <div className={cn("space-y-1", collapsed ? "px-0" : "")}>
-            <SidebarItem to="/store" icon={Store} label="Outfits" collapsed={collapsed} />
-            <SidebarItem to="/leaderboard" icon={Trophy} label="Rankings" collapsed={collapsed} />
-            <SidebarItem to="/lucky-wheel" icon={Sparkles} label="Fate Wheel" collapsed={collapsed} />
-            <SidebarItem to="/griddy" icon={Trophy} label="Griddy Luck" collapsed={collapsed} />
+        <div onClick={handleMobileNav}>
+          {(!collapsed || isMobile) && <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.25em] px-6 mb-4">Market</p>}
+          <div className={cn("space-y-1", (collapsed && !isMobile) ? "px-0" : "")}>
+            <SidebarItem to="/store" icon={Store} label="Outfits" collapsed={collapsed && !isMobile} />
+            <SidebarItem to="/leaderboard" icon={Trophy} label="Rankings" collapsed={collapsed && !isMobile} />
+            <SidebarItem to="/lucky-wheel" icon={Sparkles} label="Fate Wheel" collapsed={collapsed && !isMobile} />
+            <SidebarItem to="/griddy" icon={Trophy} label="Griddy Luck" collapsed={collapsed && !isMobile} />
           </div>
         </div>
       </nav>
 
-      <div className={cn("mt-auto pt-8 border-t border-white/5", collapsed ? "px-0" : "")}>
+      <div className={cn("mt-auto pt-8 border-t border-white/5 pb-6", (collapsed && !isMobile) ? "px-0" : "")}>
         {!user ? (
           <AppLink
             to="/login"
             className={cn(
               "w-full premium-gradient text-white font-black rounded-2xl flex items-center justify-center transition-all uppercase tracking-widest text-[11px]",
-              collapsed ? "h-14" : "py-4"
+              (collapsed && !isMobile) ? "h-14" : "py-4"
             )}
           >
-            {collapsed ? <LogOut className="w-5 h-5" /> : "Terminal Login"}
+            {(collapsed && !isMobile) ? <LogOut className="w-5 h-5" /> : "Terminal Login"}
           </AppLink>
         ) : (
-          <div className={cn("flex items-center justify-between", collapsed ? "flex-col gap-6" : "px-2")}>
-            <div className={cn("flex items-center gap-3", collapsed ? "flex-col" : "")}>
+          <div className={cn("flex items-center justify-between", (collapsed && !isMobile) ? "flex-col gap-6" : "px-2")}>
+            <div className={cn("flex items-center gap-3", (collapsed && !isMobile) ? "flex-col" : "")}>
               <ShieldCheck className="w-4 h-4 text-indigo-500" />
-              {!collapsed && <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Onchat v1.0</span>}
+              {(!collapsed || isMobile) && <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Onchat v1.0</span>}
             </div>
             <button 
-              onClick={logout}
+              onClick={() => { logout(); handleMobileNav(); }}
               className={cn(
                 "text-[10px] font-black text-slate-600 hover:text-red-500 uppercase tracking-widest transition-colors flex items-center gap-2",
-                collapsed ? "flex-col" : ""
+                (collapsed && !isMobile) ? "flex-col" : ""
               )}
             >
-              {collapsed ? <LogOut className="w-5 h-5" /> : "Disconnect"}
+              {(collapsed && !isMobile) ? <LogOut className="w-5 h-5" /> : "Disconnect"}
             </button>
           </div>
         )}
         
-        {!collapsed && (
+        {(!collapsed || isMobile) && (
           <div className="flex items-center justify-between px-2 pt-4">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
@@ -190,5 +232,7 @@ export const Sidebar = () => {
         )}
       </div>
     </motion.aside>
+    </>
   );
 };
+
