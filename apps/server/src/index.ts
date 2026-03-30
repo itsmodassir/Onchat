@@ -20,7 +20,7 @@ import moderationRoutes from './routes/moderation.routes';
 import monetizationRoutes from './routes/monetization.routes';
 import cpRoutes from './routes/cp.routes';
 import agencyRoutes from './routes/agency.routes';
-import luckRoutes from './routes/game.routes';
+import luckRoutes from './routes/luck.routes';
 import resellerRoutes from './routes/reseller.routes';
 import storageRoutes from './routes/storage.routes';
 import path from 'path';

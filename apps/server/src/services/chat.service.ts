@@ -101,11 +101,16 @@ export const chatService = {
       }
     });
 
-    socket.on('send-gift', async (data: { roomId: string; fromUserId: string; toUserId: string; giftName: string; points: number }) => {
+    socket.on('send-gift', async (data: { roomId: string; toUserId: string; giftId: string; points: number }) => {
       try {
-        await monetizationService.sendGift(data.fromUserId, data.toUserId, data.points);
-        io.to(data.roomId).emit('new-gift', data);
-        logger.info(`Gift ${data.giftName} sent from ${data.fromUserId} to ${data.toUserId} in room ${data.roomId}`);
+        await monetizationService.sendGift(userId, data.toUserId, data.points);
+        io.to(data.roomId).emit('new-gift-alert', {
+          fromUserId: userId,
+          toUserId: data.toUserId,
+          giftId: data.giftId,
+          points: data.points
+        });
+        logger.info(`Gift ${data.giftId} sent from ${userId} to ${data.toUserId} in room ${data.roomId}`);
       } catch (error: any) {
         socket.emit('error', { message: error.message });
         logger.error(`Error sending gift: ${error.message}`);
@@ -164,18 +169,12 @@ export const chatService = {
       io.to(data.roomId).emit('seat-unlocked', { seatIndex: data.seatIndex });
     });
 
-    socket.on('send-gift', async (data: { roomId: string; toUserId: string; giftId: string; points: number }) => {
-      try {
-        io.to(data.roomId).emit('new-gift-alert', {
-          fromUserId: userId,
-          toUserId: data.toUserId,
-          giftId: data.giftId,
-          points: data.points
-        });
-      } catch (error) {
-        logger.error(`Gift error: ${error}`);
-      }
+    socket.on('join-seat', (data: { roomId: string; seatIndex: number }) => {
+      io.to(data.roomId).emit('seat-joined', { userId, seatIndex: data.seatIndex });
+      logger.info(`User ${userId} joined seat ${data.seatIndex} in room ${data.roomId}`);
     });
+
+
 
     socket.on('disconnect', () => {
       for (const [userId, socketId] of userSockets.entries()) {

@@ -165,6 +165,11 @@ export const RoomScreen = () => {
       });
     });
 
+    socketRef.current.on('seat-joined', (data: { userId: string; seatIndex: number }) => {
+      // In a real app we'd fetch the user details, for now we let it sync
+      fetchRoomDetails();
+    });
+
     socketRef.current.on('new-gift-alert', (data: any) => {
       setGiftAlert(data);
       setTimeout(() => setGiftAlert(null), 3000);
@@ -316,9 +321,11 @@ export const RoomScreen = () => {
                            } else if (user?.id === room.hostId) {
                              const event = isLocked ? 'unlock-seat' : 'lock-seat';
                              socketRef.current?.emit(event, { roomId, seatIndex: i });
+                           } else if (!isLocked) {
+                             socketRef.current?.emit('join-seat', { roomId, seatIndex: i });
                            }
                          }}
-                         className={`w-20 h-20 rounded-[2rem] border-2 border-white/5 bg-white/2 hover:border-indigo-500/30 transition-all flex items-center justify-center overflow-hidden relative ${(!p && user?.id === room.hostId) || p ? 'cursor-pointer' : ''}`}
+                         className={`w-20 h-20 rounded-[2rem] border-2 border-white/5 bg-white/2 hover:border-indigo-500/30 transition-all flex items-center justify-center overflow-hidden relative ${(!p && (user?.id === room.hostId || !isLocked)) || p ? 'cursor-pointer' : ''}`}
                        >
                           {p ? (
                              <>
