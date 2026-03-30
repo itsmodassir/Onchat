@@ -26,11 +26,13 @@ interface User {
 
 interface AuthState {
   user: User | null;
+  sidebarCollapsed: boolean;
   token: string | null;
   setAuth: (user: User | null, token: string | null) => void;
   setUser: (user: User | null) => void;
   logout: () => void;
   updateUser: (updates: Partial<User>) => void;
+  toggleSidebar: () => void;
 }
 
 export const useStore = create<AuthState>()(
@@ -38,6 +40,7 @@ export const useStore = create<AuthState>()(
     (set) => ({
       user: null,
       token: null,
+      sidebarCollapsed: false,
       setAuth: (user, token) => set({ user, token }),
       setUser: (user) => set({ user }),
       logout: () => set({ user: null, token: null }),
@@ -45,6 +48,7 @@ export const useStore = create<AuthState>()(
         set((state) => ({
           user: state.user ? { ...state.user, ...updates } : null,
         })),
+      toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
     }),
     {
       name: 'onchat-auth-storage',
