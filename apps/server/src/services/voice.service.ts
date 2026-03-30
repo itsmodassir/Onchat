@@ -24,6 +24,7 @@ export const voiceService = {
       channelName,
       uid,
       role,
+      privilegeExpiredTs,
       privilegeExpiredTs
     );
 
