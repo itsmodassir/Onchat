@@ -40,6 +40,7 @@ export const RoomScreen = () => {
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
   const [isGameModalOpen, setIsGameModalOpen] = useState(false);
   const [selectedRecipientId, setSelectedRecipientId] = useState<string | null>(null);
+  const [levelUpData, setLevelUpData] = useState<any>(null);
   const [giftAlert, setGiftAlert] = useState<any>(null);
 
   const socketRef = useRef<Socket | null>(null);
@@ -175,6 +176,11 @@ export const RoomScreen = () => {
       setTimeout(() => setGiftAlert(null), 3000);
     });
 
+    socketRef.current.on('level-up', (data: any) => {
+      setLevelUpData(data);
+      setTimeout(() => setLevelUpData(null), 5000);
+    });
+
     return () => {
       socketRef.current?.off('user-mute-updated');
       socketRef.current?.off('seat-locked');
@@ -188,16 +194,6 @@ export const RoomScreen = () => {
     if (!inputText.trim() || !socketRef.current) return;
     socketRef.current.emit('send-message', { roomId, content: inputText });
     setInputText('');
-  };
-
-  const handleSendGift = (giftId: string, points: number) => {
-    if (!socketRef.current || !selectedRecipientId) return;
-    socketRef.current.emit('send-gift', { 
-        roomId, 
-        toUserId: selectedRecipientId, 
-        giftId, 
-        points 
-    });
   };
 
   const handleFollow = async (targetUserId: string) => {
@@ -478,16 +474,58 @@ export const RoomScreen = () => {
         roomId={roomId!}
       />
 
+      <GriddyGameOverlay 
+        isOpen={isGameModalOpen} 
+        onClose={() => setIsGameModalOpen(false)} 
+        roomId={roomId!}
+        socketRef={socketRef}
+      />
+
       <GiftModal 
         isOpen={isGiftModalOpen}
         onClose={() => setIsGiftModalOpen(false)}
-        onSend={handleSendGift}
+        roomId={roomId!}
+        toUserId={selectedRecipientId || room.hostId}
+        socketRef={socketRef}
         recipientName={
           selectedRecipientId === room.hostId 
             ? room.host?.name 
             : participants.find(p => p.userId === selectedRecipientId)?.user?.name || 'User'
         }
       />
+
+      <AnimatePresence>
+        {levelUpData && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.5 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none"
+          >
+            <div className="relative text-center">
+               <motion.div 
+                 animate={{ rotate: 360 }}
+                 transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                 className="absolute inset-0 bg-gradient-to-r from-amber-500 to-yellow-500 blur-[100px] opacity-30 rounded-full"
+               />
+               <div className="relative bg-slate-900/90 backdrop-blur-3xl border-4 border-amber-500 p-12 rounded-[4rem] shadow-[0_0_100px_rgba(245,158,11,0.3)]">
+                  <motion.div 
+                    initial={{ y: 20 }}
+                    animate={{ y: 0 }}
+                    transition={{ type: "spring" }}
+                    className="w-24 h-24 bg-amber-500 rounded-3xl mx-auto flex items-center justify-center text-4xl shadow-2xl mb-6"
+                  >
+                    👑
+                  </motion.div>
+                  <h2 className="text-4xl font-black text-white tracking-tighter mb-2">LEVEL UP!</h2>
+                  <p className="text-amber-500 font-black text-xl uppercase tracking-[0.3em]">Reached Level {levelUpData.level}</p>
+                  <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-4">You are becoming a legend!</p>
+               </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
 
       <AnimatePresence>
         {giftAlert && (
@@ -510,11 +548,6 @@ export const RoomScreen = () => {
         )}
       </AnimatePresence>
 
-      <GriddyGameOverlay 
-        isOpen={isGameModalOpen}
-        onClose={() => setIsGameModalOpen(false)}
-        roomId={roomId!}
-      />
     </div>
   );
 };

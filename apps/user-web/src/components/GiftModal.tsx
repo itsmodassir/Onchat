@@ -5,8 +5,10 @@ import { X, Gift, Zap, Star, Heart, Gem, Coins } from 'lucide-react';
 interface GiftModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSend: (giftId: string, points: number) => void;
   recipientName: string;
+  roomId: string;
+  toUserId: string;
+  socketRef: React.MutableRefObject<any>;
 }
 
 const GIFTS = [
@@ -17,7 +19,25 @@ const GIFTS = [
   { id: 'crown', name: 'Crown', price: 500, icon: <Coins className="w-6 h-6 text-yellow-500" /> },
 ];
 
-export const GiftModal: React.FC<GiftModalProps> = ({ isOpen, onClose, onSend, recipientName }) => {
+export const GiftModal: React.FC<GiftModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  recipientName, 
+  roomId, 
+  toUserId, 
+  socketRef 
+}) => {
+  const handleSend = (giftId: string, price: number) => {
+    if (!socketRef.current) return;
+    
+    socketRef.current.emit('send-gift', {
+      roomId,
+      toUserId,
+      giftId,
+      points: price
+    });
+    onClose();
+  };
   return (
     <AnimatePresence>
       {isOpen && (
@@ -55,10 +75,7 @@ export const GiftModal: React.FC<GiftModalProps> = ({ isOpen, onClose, onSend, r
               {GIFTS.map((gift) => (
                 <button
                   key={gift.id}
-                  onClick={() => {
-                    onSend(gift.id, gift.price);
-                    onClose();
-                  }}
+                  onClick={() => handleSend(gift.id, gift.price)}
                   className="flex flex-col items-center gap-3 p-4 rounded-3xl bg-white/5 border border-white/5 hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all group active:scale-95"
                 >
                   <div className="w-12 h-12 flex items-center justify-center bg-slate-800 rounded-2xl group-hover:scale-110 transition-transform">

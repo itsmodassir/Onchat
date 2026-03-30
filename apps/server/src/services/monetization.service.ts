@@ -1,5 +1,7 @@
 import { prisma } from '../utils/db';
 import { TransactionType } from '@prisma/client';
+import { gamificationService } from './gamification.service';
+import { eventBus, EVENTS } from '../utils/eventBus';
 
 export const monetizationService = {
   async recharge(userId: string, amount: number, coins: number) {
@@ -15,12 +17,15 @@ export const monetizationService = {
       });
 
       // 2. Update user coins
-      return await tx.user.update({
+      const user = await tx.user.update({
         where: { id: userId },
         data: {
           coins: { increment: coins },
         },
       });
+
+      eventBus.publish(EVENTS.WALLET_UPDATE, { userId, coins: user.coins, diamonds: user.diamonds });
+      return user;
     });
   },
 
@@ -77,13 +82,16 @@ export const monetizationService = {
       });
 
       // 2. Log transaction
-      return await tx.transaction.create({
+      const txRecord = await tx.transaction.create({
         data: {
           userId,
           amount: diamonds,
           type: (TransactionType as any).EXCHANGE,
         },
       });
+
+      eventBus.publish(EVENTS.WALLET_UPDATE, { userId, coins: user.coins + coins, diamonds: user.diamonds - diamonds });
+      return txRecord;
     });
   },
 
@@ -113,6 +121,15 @@ export const monetizationService = {
       await tx.transaction.create({
         data: { userId: toUserId, amount: coinAmount, type: 'GIFT_RECEIVE' as any },
       });
+
+      // 4. Award XP (10 base + 5% of amount)
+      const xpAmount = 10 + Math.floor(coinAmount * 0.05);
+      await gamificationService.awardXP(fromUserId, xpAmount, 'GIFT_SENT');
+      await gamificationService.awardXP(toUserId, xpAmount, 'GIFT_RECEIVED');
+
+      // 5. Publish Wallet Updates
+      eventBus.publish(EVENTS.WALLET_UPDATE, { userId: fromUserId, coins: sender.coins - coinAmount });
+      eventBus.publish(EVENTS.WALLET_UPDATE, { userId: toUserId, coins: (await tx.user.findUnique({ where: { id: toUserId }, select: { coins: true } })).coins });
 
       return { success: true };
     });

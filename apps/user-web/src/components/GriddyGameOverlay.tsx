@@ -7,15 +7,58 @@ interface GriddyGameOverlayProps {
   isOpen: boolean;
   onClose: () => void;
   roomId: string;
+  socketRef: React.MutableRefObject<any>;
 }
 
 const BET_AMOUNTS = [10, 50, 100, 500];
 
-export const GriddyGameOverlay: React.FC<GriddyGameOverlayProps> = ({ isOpen, onClose, roomId: _roomId }) => {
+export const GriddyGameOverlay: React.FC<GriddyGameOverlayProps> = ({ isOpen, onClose, roomId, socketRef }) => {
   const [betAmount, setBetAmount] = useState(10);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [gameStatus, setGameStatus] = useState<'IDLE' | 'BETTING' | 'SPINNING'>('IDLE');
+  const [timeLeft, setTimeLeft] = useState(10);
+  const [myBet, setMyBet] = useState<number | null>(null);
+  const [totalBets, setTotalBets] = useState(0);
   const [result, setResult] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!socketRef.current) return;
+
+    socketRef.current.on('griddy-round-started', (data: any) => {
+      setGameStatus('BETTING');
+      setTimeLeft(data.timeLeft);
+      setMyBet(null);
+      setTotalBets(0);
+      setResult(null);
+    });
+
+    socketRef.current.on('griddy-countdown', (data: any) => {
+      setTimeLeft(data.timeLeft);
+    });
+
+    socketRef.current.on('griddy-bet-placed', (data: any) => {
+      setTotalBets(data.totalBets);
+    });
+
+    socketRef.current.on('griddy-round-result', (data: any) => {
+      setGameStatus('SPINNING');
+      // Final delay to match animation
+      setTimeout(() => {
+        setResult(data);
+        setGameStatus('IDLE');
+        setIsPlaying(false);
+        fetchHistory();
+      }, 2000);
+    });
+
+    return () => {
+      socketRef.current?.off('griddy-round-started');
+      socketRef.current?.off('griddy-countdown');
+      socketRef.current?.off('griddy-bet-placed');
+      socketRef.current?.off('griddy-round-result');
+    };
+  }, [socketRef]);
 
   useEffect(() => {
     if (isOpen) {
@@ -33,29 +76,11 @@ export const GriddyGameOverlay: React.FC<GriddyGameOverlayProps> = ({ isOpen, on
   };
 
   const playGriddy = async () => {
-    if (isPlaying) return;
-    setIsPlaying(true);
-    setResult(null);
-
-    try {
-      const { data } = await api.post('/luck/griddy/play', { betAmount });
-      
-      // Simulate spinning for 2 seconds
-      setTimeout(() => {
-        setResult({
-          position: data.result,
-          multiplier: data.multiplier,
-          wonAmount: data.wonAmount,
-          isWon: data.isWon
-        });
-        setIsPlaying(false);
-        fetchHistory();
-      }, 2000);
-      
-    } catch (e: any) {
-      console.error('Play failed', e);
-      setIsPlaying(false);
-      alert(e.response?.data?.error || 'Play failed!');
+    if (gameStatus === 'IDLE') {
+      socketRef.current?.emit('start-griddy-round', { roomId });
+    } else if (gameStatus === 'BETTING' && !myBet) {
+      socketRef.current?.emit('place-griddy-bet', { roomId, betAmount });
+      setMyBet(betAmount);
     }
   };
 
@@ -180,13 +205,30 @@ export const GriddyGameOverlay: React.FC<GriddyGameOverlayProps> = ({ isOpen, on
                            </button>
                         ))}
                      </div>
-                     <button
+                      <button
                         onClick={playGriddy}
-                        disabled={isPlaying}
-                        className="w-full py-5 rounded-2xl bg-indigo-500 text-white font-black text-sm uppercase tracking-[0.2em] shadow-xl shadow-indigo-600/20 hover:bg-indigo-400 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                     >
-                        {isPlaying ? 'Spinning Galaxy...' : 'DECRYPT GRID'}
-                     </button>
+                        disabled={gameStatus === 'SPINNING' || (gameStatus === 'BETTING' && !!myBet)}
+                        className="w-full py-5 rounded-2xl bg-indigo-500 text-white font-black text-sm uppercase tracking-[0.2em] shadow-xl shadow-indigo-600/20 hover:bg-indigo-400 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden"
+                      >
+                        {gameStatus === 'IDLE' && 'START ROUND'}
+                        {gameStatus === 'BETTING' && !myBet && `JOIN ROUND (${timeLeft}s)`}
+                        {gameStatus === 'BETTING' && myBet && `BET PLACED (${timeLeft}s)`}
+                        {gameStatus === 'SPINNING' && 'LOCKED'}
+                        
+                        {gameStatus === 'BETTING' && (
+                          <motion.div 
+                            initial={{ width: '100%' }}
+                            animate={{ width: `${(timeLeft / 10) * 100}%` }}
+                            className="absolute bottom-0 left-0 h-1 bg-white/20"
+                          />
+                        )}
+                      </button>
+                      
+                      {totalBets > 0 && (
+                        <p className="text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">
+                           {totalBets} Players Active in this Round
+                        </p>
+                      )}
                   </div>
                </div>
             </div>

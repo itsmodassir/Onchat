@@ -1,5 +1,6 @@
 import { prisma } from '../utils/db';
 import { logger } from '../utils/logger';
+import { eventBus, EVENTS } from '../utils/eventBus';
 
 const LEVEL_XP_TABLE: number[] = [
   0, 100, 250, 500, 900, 1400, 2100, 3000, 4200, 5700, // levels 1-10
@@ -42,6 +43,9 @@ export const gamificationService = {
         data: { level: calculatedLevel },
       });
       logger.info(`User ${userId} leveled up to ${calculatedLevel}`);
+      
+      // Publish Level Up Event
+      eventBus.publish(EVENTS.LEVEL_UP, { userId, level: calculatedLevel });
 
       // Award level badges
       if (calculatedLevel >= 5) {

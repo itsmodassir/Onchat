@@ -5,6 +5,8 @@ import { logger } from '../utils/logger';
 import { monetizationService } from './monetization.service';
 import { notificationService } from './notification.service';
 import { moderationService } from './moderation.service';
+import { gamificationService } from './gamification.service';
+import { gameService } from './game.service';
 
 const userSockets = new Map<string, string>();
 
@@ -43,6 +45,30 @@ export const chatService = {
       if (activeUserId) {
         userSockets.set(activeUserId, socket.id);
         logger.info(`User ${activeUserId} registered with socket ${socket.id}`);
+
+        // Start XP Heartbeat (5 XP every 5 minutes)
+        const heartbeatInterval = setInterval(async () => {
+          try {
+            await gamificationService.awardXP(activeUserId, 5, 'active_participation');
+          } catch (err) {
+            logger.error(`Heartbeat XP error for ${activeUserId}: ${err}`);
+          }
+        }, 5 * 60 * 1000);
+
+        socket.heartbeatInterval = heartbeatInterval;
+
+        // Listen for Wallet and Level Updates for this user
+        eventBus.subscribe(EVENTS.WALLET_UPDATE, (data: any) => {
+          if (data.userId === activeUserId) {
+            socket.emit('wallet-update', data);
+          }
+        });
+
+        eventBus.subscribe(EVENTS.LEVEL_UP, (data: any) => {
+          if (data.userId === activeUserId) {
+            socket.emit('level-up', data);
+          }
+        });
       }
     });
 
@@ -59,6 +85,9 @@ export const chatService = {
       if (user) {
         io.to(roomId).emit('user-joined', { roomId, user });
         logger.info(`User ${userId} joined room ${roomId}`);
+        
+        // Award XP for joining
+        await gamificationService.awardXP(userId, 5, 'room_join');
       }
     });
 
@@ -78,6 +107,9 @@ export const chatService = {
         chatService.broadcastMessage(io, data.roomId, message);
         eventBus.publish(EVENTS.MESSAGE_SENT, { roomId: data.roomId, userId: userId, messageId: message.id });
         logger.info(`Message sent in room ${data.roomId} by user ${userId}`);
+
+        // Award XP for messaging
+        await gamificationService.awardXP(userId, 2, 'message_sent');
       } catch (error) {
         logger.error(`Error saving message: ${error}`);
       }
@@ -175,8 +207,49 @@ export const chatService = {
     });
 
 
+    socket.on('start-griddy-round', async (data: { roomId: string }) => {
+      try {
+        const roundInfo = await gameService.startRound(data.roomId);
+        io.to(data.roomId).emit('griddy-round-started', roundInfo);
+
+        // Start 10s Countdown
+        let timeLeft = 10;
+        const countdown = setInterval(() => {
+          timeLeft--;
+          if (timeLeft > 0) {
+            io.to(data.roomId).emit('griddy-countdown', { timeLeft });
+          } else {
+            clearInterval(countdown);
+            // Process Round
+            gameService.processRound(data.roomId).then(result => {
+              io.to(data.roomId).emit('griddy-round-result', result);
+            }).catch(err => {
+              logger.error(`Error processing round in ${data.roomId}: ${err}`);
+            });
+          }
+        }, 1000);
+
+      } catch (err: any) {
+        socket.emit('error', { message: err.message });
+      }
+    });
+
+    socket.on('place-griddy-bet', async (data: { roomId: string; betAmount: number }) => {
+      try {
+        const betInfo = await gameService.placeBet(data.roomId, userId, data.betAmount);
+        io.to(data.roomId).emit('griddy-bet-placed', betInfo);
+      } catch (err: any) {
+        socket.emit('error', { message: err.message });
+      }
+    });
+
 
     socket.on('disconnect', () => {
+      // Clear Heartbeat
+      if (socket.heartbeatInterval) {
+        clearInterval(socket.heartbeatInterval);
+      }
+
       for (const [userId, socketId] of userSockets.entries()) {
         if (socketId === socket.id) {
           userSockets.delete(userId);
