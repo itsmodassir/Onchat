@@ -10,7 +10,7 @@ import api from '../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 
-const SOCKET_URL = 'http://localhost:5000'; // Updated to local for dev
+const SOCKET_URL = 'https://api.onchat.fun';
 
 export const MessageScreen = () => {
   const { user } = useStore();
@@ -37,6 +37,11 @@ export const MessageScreen = () => {
     
     socketRef.current = io(SOCKET_URL, {
       auth: { token: useStore.getState().token }
+    });
+
+    socketRef.current.on('connect', () => {
+      console.log('Connected to Terminal Socket');
+      socketRef.current.emit('register', user?.id);
     });
 
     socketRef.current.on('new-private-message', (data: any) => {
