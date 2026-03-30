@@ -20,8 +20,9 @@ export const emailService = {
       transporter: nodemailer.createTransport({
         host,
         port,
+        secure: port === 465, // true for 465, false for other ports
         auth: { user, pass },
-      }),
+      } as any),
       from: `Onchat <${from}>`
     };
   },
