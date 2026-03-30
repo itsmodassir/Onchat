@@ -63,27 +63,45 @@ export const RoomScreen = () => {
     }
   }, [user?.id]);
 
-  const setupAgora = useCallback(async (rtcToken: string) => {
+  const setupAgora = useCallback(async (rtcToken: string, isHost: boolean = false) => {
     try {
+      // Cleanup any existing client before creating a new one
+      if (agoraClient.current) {
+        try {
+          if (localTrack.current) {
+            localTrack.current.stop();
+            localTrack.current.close();
+            localTrack.current = null;
+          }
+          await agoraClient.current.leave();
+        } catch (_) {}
+        agoraClient.current = null;
+      }
+
       agoraClient.current = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' });
       
-      const role = room?.hostId === user?.id ? 'host' : 'audience';
+      const role = isHost ? 'host' : 'audience';
       await agoraClient.current.setClientRole(role);
+
+      // Use a stable numeric UID: parse the hex shortId or use a random int
+      const numericUid = Math.abs(user?.shortId?.split('').reduce((acc: number, c: string) => acc + c.charCodeAt(0), 0) ?? Math.floor(Math.random() * 100000));
 
       await agoraClient.current.join(
         AGORA_APP_ID, 
         roomId!, 
         rtcToken, 
-        Number(user?.id?.slice(0, 8)) || null
+        numericUid
       );
 
-      if (role === 'host') {
+      if (isHost) {
         localTrack.current = await AgoraRTC.createMicrophoneAudioTrack({
           encoderConfig: 'music_standard'
         });
         await agoraClient.current.publish(localTrack.current);
+        setIsSpeaker(true);
       }
 
+      // Listen for other speakers publishing audio
       agoraClient.current.on('user-published', async (remoteUser, mediaType) => {
         await agoraClient.current?.subscribe(remoteUser, mediaType);
         if (mediaType === 'audio') {
@@ -91,10 +109,16 @@ export const RoomScreen = () => {
         }
       });
 
+      agoraClient.current.on('user-unpublished', (remoteUser, mediaType) => {
+        if (mediaType === 'audio') {
+          remoteUser.audioTrack?.stop();
+        }
+      });
+
     } catch (e) {
       console.error('Agora Web setup error:', e);
     }
-  }, [roomId, room?.hostId]);
+  }, [roomId, user?.shortId]);
 
   const toggleBroadcasting = useCallback(async (active: boolean) => {
     if (!agoraClient.current) return;
@@ -145,7 +169,7 @@ export const RoomScreen = () => {
       setLockedSeatIndexes(new Set(data.lockedSeats || []));
 
       if (data.rtcToken) {
-        setupAgora(data.rtcToken);
+        setupAgora(data.rtcToken, data.hostId === user?.id);
       }
 
       // Sync local state with participant data
@@ -235,9 +259,23 @@ export const RoomScreen = () => {
       });
     });
 
-    socketRef.current.on('seat-joined', (data: { userId: string; seatIndex: number }) => {
+    socketRef.current.on('seat-joined', async (data: { userId: string; seatIndex: number }) => {
       if (data.userId === user?.id) {
-        toggleBroadcasting(true);
+        // Re-initialize Agora as a HOST/publisher so this user can broadcast audio
+        try {
+          if (agoraClient.current) {
+            await agoraClient.current.setClientRole('host');
+            if (!localTrack.current) {
+              localTrack.current = await AgoraRTC.createMicrophoneAudioTrack({
+                encoderConfig: 'music_standard'
+              });
+            }
+            await agoraClient.current.publish(localTrack.current);
+          }
+        } catch (e) {
+          console.error('Failed to promote to speaker:', e);
+        }
+        setIsSpeaker(true);
       }
       fetchRoomDetails();
     });
