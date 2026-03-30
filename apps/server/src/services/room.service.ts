@@ -252,11 +252,13 @@ export const roomService = {
     return await prisma.room.findUnique({
       where: { id: roomId },
       include: {
-        host: true,
+        host: {
+          select: { id: true, name: true, avatar: true, shortId: true, coins: true }
+        },
         participants: {
           include: {
             user: {
-              select: { name: true, email: true, coins: true },
+              select: { id: true, name: true, avatar: true, shortId: true, email: true, coins: true },
             },
           },
         },
@@ -264,7 +266,7 @@ export const roomService = {
           take: 50,
           orderBy: { createdAt: 'desc' },
           include: {
-            user: { select: { name: true } },
+            user: { select: { id: true, name: true, avatar: true } },
           },
         },
       },

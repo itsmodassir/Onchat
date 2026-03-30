@@ -17,7 +17,6 @@ export class UserService {
         shortId: true,
         name: true,
         avatar: true,
-        coverPhoto: true,
         level: true,
         bio: true,
         coins: true,
