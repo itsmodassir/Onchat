@@ -3,6 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.monetizationService = void 0;
 const db_1 = require("../utils/db");
 const client_1 = require("@prisma/client");
+const gamification_service_1 = require("./gamification.service");
+const eventBus_1 = require("../utils/eventBus");
 exports.monetizationService = {
     async recharge(userId, amount, coins) {
         return await db_1.prisma.$transaction(async (tx) => {
@@ -16,12 +18,14 @@ exports.monetizationService = {
                 },
             });
             // 2. Update user coins
-            return await tx.user.update({
+            const user = await tx.user.update({
                 where: { id: userId },
                 data: {
                     coins: { increment: coins },
                 },
             });
+            eventBus_1.eventBus.publish(eventBus_1.EVENTS.WALLET_UPDATE, { userId, coins: user.coins, diamonds: user.diamonds });
+            return user;
         });
     },
     async spin(userId, stake) {
@@ -69,13 +73,15 @@ exports.monetizationService = {
                 },
             });
             // 2. Log transaction
-            return await tx.transaction.create({
+            const txRecord = await tx.transaction.create({
                 data: {
                     userId,
                     amount: diamonds,
                     type: client_1.TransactionType.EXCHANGE,
                 },
             });
+            eventBus_1.eventBus.publish(eventBus_1.EVENTS.WALLET_UPDATE, { userId, coins: user.coins + coins, diamonds: user.diamonds - diamonds });
+            return txRecord;
         });
     },
     async sendGift(fromUserId, toUserId, coinAmount) {
@@ -101,6 +107,13 @@ exports.monetizationService = {
             await tx.transaction.create({
                 data: { userId: toUserId, amount: coinAmount, type: 'GIFT_RECEIVE' },
             });
+            // 4. Award XP (10 base + 5% of amount)
+            const xpAmount = 10 + Math.floor(coinAmount * 0.05);
+            await gamification_service_1.gamificationService.awardXP(fromUserId, xpAmount, 'GIFT_SENT');
+            await gamification_service_1.gamificationService.awardXP(toUserId, xpAmount, 'GIFT_RECEIVED');
+            // 5. Publish Wallet Updates
+            eventBus_1.eventBus.publish(eventBus_1.EVENTS.WALLET_UPDATE, { userId: fromUserId, coins: sender.coins - coinAmount });
+            eventBus_1.eventBus.publish(eventBus_1.EVENTS.WALLET_UPDATE, { userId: toUserId, coins: (await tx.user.findUnique({ where: { id: toUserId }, select: { coins: true } })).coins });
             return { success: true };
         });
     },

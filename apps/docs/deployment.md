@@ -7,10 +7,10 @@ Detailed instructions for deploying and maintaining the Onchat platform on the A
 ### SSH Connection
 - **IP**: `13.126.135.253`
 - **User**: `ubuntu`
-- **Key**: `onchat.pem` (Locally stored in root)
+- **Key**: `onchat.pem` (Stored in `~/Downloads`)
 - **Command**:
   ```bash
-  ssh -i onchat.pem ubuntu@13.126.135.253
+  ssh -i ~/Downloads/onchat.pem ubuntu@13.126.135.253
   ```
 
 ---

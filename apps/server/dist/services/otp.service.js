@@ -35,11 +35,13 @@ exports.otpService = {
                 expiresAt
             }
         });
-        const sent = await email_service_1.emailService.sendOtpEmail(email, code, purpose);
-        if (!sent) {
-            // Log OTP to server console as fallback — check server logs if email fails
-            logger_1.logger.warn(`[OTP FALLBACK] Code for ${email} (${purpose}): ${code}`);
-            // Don't throw — let the OTP flow continue so user can proceed in development
+        // Run email delivery and await it to catch infrastructure errors
+        try {
+            await email_service_1.emailService.sendOtpEmail(email, code, purpose);
+        }
+        catch (err) {
+            logger_1.logger.error(`[OTP_DELIVERY_FAILURE] Protocol error for ${email}: ${err.message}`);
+            throw new Error(`Email delivery failed: ${err.message}`);
         }
         return otp;
     },

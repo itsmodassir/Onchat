@@ -19,8 +19,7 @@ exports.voiceService = {
         const privilegeExpiredTs = currentTimestamp + expirationTimeInSeconds;
         // Standard agora-token buildTokenWithUid takes 6 arguments
         // If it expects 7, some versions include both token expiry and privilege expiry
-        const token = agora_token_1.RtcTokenBuilder.buildTokenWithUid(APP_ID, APP_CERTIFICATE, channelName, uid, role, privilegeExpiredTs, privilegeExpiredTs // Some versions expect this twice (token expiry + privilege expiry)
-        );
+        const token = agora_token_1.RtcTokenBuilder.buildTokenWithUid(APP_ID, APP_CERTIFICATE, channelName, uid, role, privilegeExpiredTs, privilegeExpiredTs);
         return token;
     },
 };

@@ -23,6 +23,7 @@ import agencyRoutes from './routes/agency.routes';
 import luckRoutes from './routes/luck.routes';
 import resellerRoutes from './routes/reseller.routes';
 import storageRoutes from './routes/storage.routes';
+import userRoutes from './routes/user.routes';
 import path from 'path';
 
 import { createAdapter } from '@socket.io/redis-adapter';
@@ -70,6 +71,7 @@ app.use('/api/agency', agencyRoutes);
 app.use('/api/luck', luckRoutes);
 app.use('/api/reseller', resellerRoutes);
 app.use('/api/storage', storageRoutes);
+app.use('/api/users', userRoutes);
 
 // Static Media Serving
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));

@@ -46,3 +46,25 @@ export const getStorageStats = async (req: Request, res: Response) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+export const setProfilePhoto = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const { mediaId } = req.body;
+    const updatedUser = await StorageService.setProfilePhoto(userId, mediaId);
+    res.json(updatedUser);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+export const setCoverPhoto = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const { mediaId } = req.body;
+    const updatedUser = await StorageService.setCoverPhoto(userId, mediaId);
+    res.json(updatedUser);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+};

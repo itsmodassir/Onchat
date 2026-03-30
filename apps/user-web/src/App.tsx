@@ -51,6 +51,7 @@ function App() {
           {/* Protected Dashboard Routes */}
           <AppRoute path="/" element={<ProtectedRoute><HomeScreen /></ProtectedRoute>} />
           <AppRoute path="/profile" element={<ProtectedRoute><ProfileScreen /></ProtectedRoute>} />
+          <AppRoute path="/profile/:userId" element={<ProtectedRoute><ProfileScreen /></ProtectedRoute>} />
           <AppRoute path="/wallet" element={<ProtectedRoute><WalletScreen /></ProtectedRoute>} />
           <AppRoute path="/store" element={<ProtectedRoute><StoreScreen /></ProtectedRoute>} />
           <AppRoute path="/griddy" element={<ProtectedRoute><GriddyGameScreen /></ProtectedRoute>} />

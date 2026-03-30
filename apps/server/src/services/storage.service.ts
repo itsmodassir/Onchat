@@ -116,4 +116,36 @@ export class StorageService {
       percentage: (((user as any).storageUsed || 0) / ((user as any).storageQuota || 10737418240)) * 100
     };
   }
+
+  /**
+   * Set user profile photo from existing media
+   */
+  static async setProfilePhoto(userId: string, mediaId: string) {
+    const media = await prisma.media.findUnique({
+      where: { id: mediaId, userId }
+    });
+
+    if (!media) throw new Error('Media not found');
+
+    return prisma.user.update({
+      where: { id: userId },
+      data: { avatar: media.path }
+    });
+  }
+
+  /**
+   * Set user cover photo from existing media
+   */
+  static async setCoverPhoto(userId: string, mediaId: string) {
+    const media = await prisma.media.findUnique({
+      where: { id: mediaId, userId }
+    });
+
+    if (!media) throw new Error('Media not found');
+
+    return prisma.user.update({
+      where: { id: userId },
+      data: { coverPhoto: media.path }
+    });
+  }
 }

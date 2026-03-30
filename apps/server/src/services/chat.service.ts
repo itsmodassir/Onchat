@@ -7,6 +7,7 @@ import { notificationService } from './notification.service';
 import { moderationService } from './moderation.service';
 import { gamificationService } from './gamification.service';
 import { gameService } from './game.service';
+import { roomService } from './room.service';
 
 const userSockets = new Map<string, string>();
 
@@ -201,9 +202,72 @@ export const chatService = {
       io.to(data.roomId).emit('seat-unlocked', { seatIndex: data.seatIndex });
     });
 
-    socket.on('join-seat', (data: { roomId: string; seatIndex: number }) => {
-      io.to(data.roomId).emit('seat-joined', { userId, seatIndex: data.seatIndex });
-      logger.info(`User ${userId} joined seat ${data.seatIndex} in room ${data.roomId}`);
+    socket.on('join-seat', async (data: { roomId: string; seatIndex: number }) => {
+      try {
+        const participant = await roomService.joinSeat(data.roomId, userId, data.seatIndex);
+        io.to(data.roomId).emit('seat-joined', { 
+          userId, 
+          seatIndex: data.seatIndex, 
+          user: participant.user 
+        });
+        logger.info(`User ${userId} joined seat ${data.seatIndex} in room ${data.roomId}`);
+      } catch (err: any) {
+        socket.emit('error', { message: err.message });
+      }
+    });
+
+    socket.on('leave-seat', async (data: { roomId: string }) => {
+      try {
+        await roomService.leaveSeat(data.roomId, userId);
+        io.to(data.roomId).emit('seat-left', { userId });
+        logger.info(`User ${userId} left seat in room ${data.roomId}`);
+      } catch (err: any) {
+        socket.emit('error', { message: err.message });
+      }
+    });
+
+    socket.on('remove-from-seat', async (data: { roomId: string; targetUserId: string }) => {
+      try {
+        // Verify host (simplified check: fetch room)
+        const room = await (prisma.room as any).findUnique({ where: { id: data.roomId } });
+        if (room?.hostId !== userId) throw new Error('Only host can remove from seat');
+
+        await roomService.leaveSeat(data.roomId, data.targetUserId);
+        io.to(data.roomId).emit('seat-left', { userId: data.targetUserId });
+        logger.info(`Host ${userId} removed ${data.targetUserId} from seat in room ${data.roomId}`);
+      } catch (err: any) {
+        socket.emit('error', { message: err.message });
+      }
+    });
+
+    socket.on('kick-user', async (data: { roomId: string; targetUserId: string }) => {
+      try {
+        // Authenticate as host (simplified for now)
+        await roomService.kickUser(data.roomId, data.targetUserId);
+        
+        // Find target socket and force them to leave
+        const targetSocketId = userSockets.get(data.targetUserId);
+        if (targetSocketId) {
+          const targetSocket = io.sockets.sockets.get(targetSocketId);
+          if (targetSocket) {
+             targetSocket.leave(data.roomId);
+             targetSocket.emit('kicked-from-room', { roomId: data.roomId });
+          }
+        }
+        
+        io.to(data.roomId).emit('user-kicked', { userId: data.targetUserId });
+      } catch (err: any) {
+        socket.emit('error', { message: err.message });
+      }
+    });
+
+    socket.on('toggle-room-lock', async (data: { roomId: string; isLocked: boolean }) => {
+      try {
+        await roomService.toggleRoomLock(data.roomId, data.isLocked);
+        io.to(data.roomId).emit('room-lock-updated', { isLocked: data.isLocked });
+      } catch (err: any) {
+        socket.emit('error', { message: err.message });
+      }
     });
 
 

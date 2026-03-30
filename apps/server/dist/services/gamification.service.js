@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.gamificationService = void 0;
 const db_1 = require("../utils/db");
 const logger_1 = require("../utils/logger");
+const eventBus_1 = require("../utils/eventBus");
 const LEVEL_XP_TABLE = [
     0, 100, 250, 500, 900, 1400, 2100, 3000, 4200, 5700, // levels 1-10
     7500, 9800, 12600, 16000, 20000, 25000, 31000, 38500, 47500, 58000, // levels 11-20
@@ -39,6 +40,8 @@ exports.gamificationService = {
                 data: { level: calculatedLevel },
             });
             logger_1.logger.info(`User ${userId} leveled up to ${calculatedLevel}`);
+            // Publish Level Up Event
+            eventBus_1.eventBus.publish(eventBus_1.EVENTS.LEVEL_UP, { userId, level: calculatedLevel });
             // Award level badges
             if (calculatedLevel >= 5) {
                 await this.awardBadge(userId, 'LEVEL_5');

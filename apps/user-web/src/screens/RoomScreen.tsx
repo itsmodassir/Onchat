@@ -9,7 +9,7 @@ import {
   Settings, Package, Gamepad2, 
   Smile, Volume2, ChevronLeft, Shield,
   TrendingUp, MessageSquare, UserPlus,
-  Check, Lock
+  Check, Lock, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { InviteFriendModal } from '../components/InviteFriendModal';
@@ -42,6 +42,12 @@ export const RoomScreen = () => {
   const [selectedRecipientId, setSelectedRecipientId] = useState<string | null>(null);
   const [levelUpData, setLevelUpData] = useState<any>(null);
   const [giftAlert, setGiftAlert] = useState<any>(null);
+  const [isSpeaker, setIsSpeaker] = useState(false);
+  const [isRoomLocked, setIsRoomLocked] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [adminMenuParticipant, setAdminMenuParticipant] = useState<any>(null);
 
   const socketRef = useRef<Socket | null>(null);
   const agoraClient = useRef<IAgoraRTCClient | null>(null);
@@ -87,7 +93,45 @@ export const RoomScreen = () => {
     } catch (e) {
       console.error('Agora Web setup error:', e);
     }
-  }, [roomId, user, room?.hostId]);
+  }, [roomId, room?.hostId]);
+
+  const toggleBroadcasting = useCallback(async (active: boolean) => {
+    if (!agoraClient.current) return;
+    try {
+      if (active) {
+        await agoraClient.current.setClientRole('host');
+        if (!localTrack.current) {
+          localTrack.current = await AgoraRTC.createMicrophoneAudioTrack({
+            encoderConfig: 'music_standard'
+          });
+        }
+        await agoraClient.current.publish(localTrack.current);
+        setIsSpeaker(true);
+      } else {
+        if (localTrack.current) {
+          await agoraClient.current.unpublish(localTrack.current);
+        }
+        await agoraClient.current.setClientRole('audience');
+        setIsSpeaker(false);
+      }
+    } catch (e) {
+      console.error('Toggle broadcasting failed', e);
+    }
+  }, []);
+
+  const leaveRoom = useCallback(async () => {
+    if (isSpeaker) {
+       await toggleBroadcasting(false);
+    }
+    if (socketRef.current) {
+       socketRef.current.emit('leave-room', { roomId });
+       socketRef.current.disconnect();
+    }
+    if (agoraClient.current) {
+       await agoraClient.current.leave();
+    }
+    navigate('/');
+  }, [roomId, isSpeaker, toggleBroadcasting, navigate]);
 
   const fetchRoomDetails = useCallback(async () => {
     if (!roomId) return;
@@ -96,10 +140,18 @@ export const RoomScreen = () => {
       setRoom(data);
       setMessages(data.messages || []);
       setParticipants(data.participants || []);
+      setIsRoomLocked(data.isLocked || false);
 
       const rtcRes = await api.post(`/rooms/${roomId}/join`);
       if (rtcRes.data.rtcToken) {
         setupAgora(rtcRes.data.rtcToken);
+      }
+
+      // Sync local state with participant data
+      const me = data.participants?.find((p: any) => p.userId === user?.id);
+      if (me) {
+        if (me.seatIndex !== null) setIsSpeaker(true);
+        if (me.isMuted) setIsMuted(true);
       }
     } catch (error) {
       console.error('Fetch room failed:', error);
@@ -166,9 +218,27 @@ export const RoomScreen = () => {
       });
     });
 
-    socketRef.current.on('seat-joined', (_data: { userId: string; seatIndex: number }) => {
-      // In a real app we'd fetch the user details, for now we let it sync
+    socketRef.current.on('seat-joined', (data: { userId: string; seatIndex: number }) => {
+      if (data.userId === user?.id) {
+        toggleBroadcasting(true);
+      }
       fetchRoomDetails();
+    });
+
+    socketRef.current.on('seat-left', (data: { userId: string }) => {
+      if (data.userId === user?.id) {
+        toggleBroadcasting(false);
+      }
+      fetchRoomDetails();
+    });
+
+    socketRef.current.on('room-lock-updated', (data: { isLocked: boolean }) => {
+      setIsRoomLocked(data.isLocked);
+    });
+
+    socketRef.current.on('kicked-from-room', () => {
+      alert('You have been kicked from the room by the host.');
+      navigate('/');
     });
 
     socketRef.current.on('new-gift-alert', (_data: any) => {
@@ -259,24 +329,41 @@ export const RoomScreen = () => {
             onClick={() => setIsInviteModalOpen(true)}
             className="px-6 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/10 text-indigo-400 font-black text-[10px] uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all flex items-center gap-3 shadow-xl shadow-indigo-600/5 active:scale-95"
           >
-             <UserPlus className="w-4 h-4" />
-             Transmitting Invite
+            <UserPlus className="w-4 h-4" />
+             <span className="hidden sm:inline">Transmitting Invite</span>
+             <span className="sm:hidden text-[8px]">Invite</span>
           </button>
-          <button className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-all"><Settings className="w-5 h-5" /></button>
+          
+          {user?.id === room.hostId && (
+            <button 
+              onClick={() => setIsSettingsOpen(true)}
+              className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-all"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+          )}
+          
           <button 
-            onClick={() => navigate('/')}
-            className="px-6 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 font-black text-[11px] uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all flex items-center gap-2"
+            onClick={leaveRoom}
+            className="px-4 sm:px-6 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 font-black text-[11px] uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all flex items-center gap-2"
           >
             <LogOut className="w-4 h-4" />
-            Leave Room
+            <span className="hidden sm:inline">Leave Room</span>
           </button>
         </div>
       </header>
 
+      {isRoomLocked && (
+        <div className="bg-amber-500/10 border-y border-amber-500/20 py-2 px-8 flex items-center gap-3">
+           <Lock className="w-3 h-3 text-amber-500" />
+           <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Room is Locked by Host</span>
+        </div>
+      )}
+
       <main className="flex-1 flex overflow-hidden relative z-10">
         {/* Left Side: Stage (Participants) */}
-        <div className="flex-1 flex flex-col p-8 overflow-y-auto scrollbar-none">
-           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
+        <div className="flex-1 flex flex-col p-4 sm:p-8 overflow-y-auto scrollbar-none">
+           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-8 max-w-4xl mx-auto w-full">
               {/* Host Seat */}
               <div className="flex flex-col items-center gap-4 group">
                  <div className="relative">
@@ -310,18 +397,22 @@ export const RoomScreen = () => {
                  return (
                     <div key={i} className="flex flex-col items-center gap-4 group relative">
                        <div 
-                         onClick={() => {
-                           if (p) {
-                             setSelectedRecipientId(p.userId);
-                             setIsGiftModalOpen(true);
-                           } else if (user?.id === room.hostId) {
-                             const event = isLocked ? 'unlock-seat' : 'lock-seat';
-                             socketRef.current?.emit(event, { roomId, seatIndex: i });
-                           } else if (!isLocked) {
-                             socketRef.current?.emit('join-seat', { roomId, seatIndex: i });
-                           }
-                         }}
-                         className={`w-20 h-20 rounded-[2rem] border-2 border-white/5 bg-white/2 hover:border-indigo-500/30 transition-all flex items-center justify-center overflow-hidden relative ${(!p && (user?.id === room.hostId || !isLocked)) || p ? 'cursor-pointer' : ''}`}
+                          onClick={() => {
+                            if (p) {
+                              if (user?.id === room.hostId && p.userId !== user?.id) {
+                                setAdminMenuParticipant(p);
+                              } else {
+                                setSelectedRecipientId(p.userId);
+                                setIsGiftModalOpen(true);
+                              }
+                            } else if (user?.id === room.hostId) {
+                              const event = isLocked ? 'unlock-seat' : 'lock-seat';
+                              socketRef.current?.emit(event, { roomId, seatIndex: i });
+                            } else if (!isLocked) {
+                              socketRef.current?.emit('join-seat', { roomId, seatIndex: i });
+                            }
+                          }}
+                          className={`w-20 h-20 rounded-[2rem] border-2 border-white/5 bg-white/2 hover:border-indigo-500/30 transition-all flex items-center justify-center overflow-hidden relative ${(!p && (user?.id === room.hostId || !isLocked)) || p ? 'cursor-pointer' : ''}`}
                        >
                           {p ? (
                              <>
@@ -362,16 +453,27 @@ export const RoomScreen = () => {
            </div>
         </div>
 
-        {/* Right Side: Chat Sidebar */}
-        <div className="w-[450px] border-l border-white/5 flex flex-col bg-white/1 backdrop-blur-2xl">
+        {/* Right Side: Chat Sidebar (Responsive Drawer on mobile, Sidebar on desktop) */}
+        <div className={`
+            fixed inset-y-0 right-0 z-50 w-full sm:w-[400px] bg-[#020617] border-l border-white/5 flex flex-col transition-transform duration-300 transform
+            ${isChatOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0 lg:static'}
+         `}>
            <div className="p-6 border-b border-white/5 flex items-center justify-between">
               <div className="flex items-center gap-3">
                  <MessageSquare className="w-4 h-4 text-indigo-500" />
                  <span className="text-xs font-black uppercase tracking-widest text-slate-500">Live Transmission</span>
               </div>
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-600/10 border border-indigo-500/20">
-                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                 <span className="text-[9px] font-black text-indigo-400 tabular-nums uppercase">{participants.length} online</span>
+              <div className="flex items-center gap-4">
+                 <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-600/10 border border-indigo-500/20">
+                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                    <span className="text-[9px] font-black text-indigo-400 tabular-nums uppercase">{participants.length} online</span>
+                 </div>
+                 <button 
+                   onClick={() => setIsChatOpen(false)}
+                   className="lg:hidden w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-slate-500"
+                 >
+                   <X className="w-4 h-4" />
+                 </button>
               </div>
            </div>
 
@@ -426,12 +528,52 @@ export const RoomScreen = () => {
             <div className="h-8 w-[1px] bg-white/5" />
             <button 
               onClick={toggleMute}
-              className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-2xl relative overflow-hidden group ${isMuted ? 'bg-rose-500/20 border-rose-500/30' : 'bg-indigo-600 border-indigo-500 shadow-indigo-600/30'}`}
+              disabled={!isSpeaker && user?.id !== room.hostId}
+              className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all shadow-2xl relative overflow-hidden group 
+                ${!isSpeaker && user?.id !== room.hostId ? 'bg-slate-800 opacity-50 cursor-not-allowed' : ''}
+                ${isMuted ? 'bg-rose-500/20 border-rose-500/30' : 'bg-indigo-600 border-indigo-500 shadow-indigo-600/30'}`}
             >
                {isMuted ? <MicOff className="w-6 h-6 text-rose-500" /> : <Mic className="w-6 h-6 text-white" />}
                <div className="absolute inset-x-0 bottom-0 h-1 bg-white/10" />
             </button>
-            <button className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-all"><Smile className="w-6 h-6" /></button>
+            <button 
+               onClick={() => setIsChatOpen(true)}
+               className="lg:hidden w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-all relative"
+            >
+               <MessageSquare className="w-6 h-6" />
+               <div className="absolute top-2 right-2 w-2 h-2 bg-indigo-500 rounded-full animate-ping" />
+            </button>
+            <div className="relative">
+               <button 
+                 onClick={() => setIsEmojiPickerOpen(!isEmojiPickerOpen)}
+                 className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-all"
+               >
+                 <Smile className="w-6 h-6" />
+               </button>
+               <AnimatePresence>
+                  {isEmojiPickerOpen && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                      className="absolute bottom-16 left-0 bg-slate-900 border border-white/5 p-4 rounded-3xl shadow-2xl flex gap-3 z-50 backdrop-blur-3xl"
+                    >
+                       {['❤️', '🔥', '👏', '😂', '💯', '✨'].map(emoji => (
+                         <button 
+                           key={emoji}
+                           onClick={() => {
+                             socketRef.current?.emit('react-message', { roomId, userId: user?.id, emoji });
+                             setIsEmojiPickerOpen(false);
+                           }}
+                           className="text-2xl hover:scale-125 transition-transform active:scale-95"
+                         >
+                           {emoji}
+                         </button>
+                       ))}
+                    </motion.div>
+                  )}
+               </AnimatePresence>
+            </div>
          </div>
 
          <div className="flex items-center gap-4 bg-slate-950/50 p-2 rounded-2xl border border-white/5 hidden md:flex">
@@ -495,6 +637,135 @@ export const RoomScreen = () => {
       />
 
       <AnimatePresence>
+        {adminMenuParticipant && (
+          <div className="fixed inset-0 z-[160] flex items-end sm:items-center justify-center p-4">
+             <motion.div 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               onClick={() => setAdminMenuParticipant(null)}
+               className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+             />
+             <motion.div 
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                className="relative w-full max-w-sm bg-slate-900 border border-white/5 rounded-t-[3rem] sm:rounded-[3rem] p-8 pb-12 sm:pb-8 shadow-2xl"
+             >
+                <div className="flex items-center gap-4 mb-8">
+                   <div className="w-16 h-16 rounded-2xl border-2 border-indigo-500/30 overflow-hidden">
+                      <img src={adminMenuParticipant.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${adminMenuParticipant.userId}`} className="w-full h-full object-cover" />
+                   </div>
+                   <div>
+                      <h2 className="text-xl font-black text-white uppercase tracking-tighter">{adminMenuParticipant.user?.name}</h2>
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Participant Control</p>
+                   </div>
+                </div>
+                
+                <div className="space-y-3">
+                   <button 
+                     onClick={() => {
+                        setSelectedRecipientId(adminMenuParticipant.userId);
+                        setIsGiftModalOpen(true);
+                        setAdminMenuParticipant(null);
+                     }}
+                     className="w-full p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/10 text-indigo-400 font-black text-xs uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all flex items-center gap-3"
+                   >
+                      <Gift className="w-4 h-4" />
+                      Send Direct Gift
+                   </button>
+                   
+                    {adminMenuParticipant.seatIndex !== null && (
+                      <button 
+                        onClick={() => {
+                           socketRef.current?.emit('remove-from-seat', { roomId, targetUserId: adminMenuParticipant.userId });
+                           setAdminMenuParticipant(null);
+                        }}
+                        className="w-full p-4 rounded-2xl bg-amber-500/10 border border-amber-500/10 text-amber-500 font-black text-xs uppercase tracking-widest hover:bg-amber-500 hover:text-white transition-all flex items-center gap-3"
+                      >
+                         <Shield className="w-4 h-4" />
+                         Remove from Seat
+                      </button>
+                    )}
+
+                   <button 
+                     onClick={() => {
+                        socketRef.current?.emit('kick-user', { roomId, targetUserId: adminMenuParticipant.userId });
+                        setAdminMenuParticipant(null);
+                     }}
+                     className="w-full p-4 rounded-2xl bg-rose-500/10 border border-rose-500/10 text-rose-500 font-black text-xs uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all flex items-center gap-3"
+                   >
+                      <LogOut className="w-4 h-4" />
+                      Kick from Room
+                   </button>
+                </div>
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isSettingsOpen && (
+          <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-4">
+             <motion.div 
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               exit={{ opacity: 0 }}
+               onClick={() => setIsSettingsOpen(false)}
+               className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+             />
+             <motion.div 
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                className="relative w-full max-w-sm bg-slate-900 border border-white/5 rounded-t-[3rem] sm:rounded-[3rem] p-8 pb-12 sm:pb-8 shadow-2xl"
+             >
+                <div className="flex items-center justify-between mb-8">
+                   <h2 className="text-xl font-black text-white uppercase tracking-tighter">Room Settings</h2>
+                   <button onClick={() => setIsSettingsOpen(false)} className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-slate-500"><X className="w-5 h-5"/></button>
+                </div>
+                
+                <div className="space-y-4">
+                   <button 
+                     onClick={() => {
+                        const nextLock = !isRoomLocked;
+                        socketRef.current?.emit('toggle-room-lock', { roomId, isLocked: nextLock });
+                        setIsRoomLocked(nextLock);
+                     }}
+                     className="w-full p-6 rounded-3xl bg-white/5 border border-white/5 flex items-center justify-between group hover:bg-indigo-500/10 transition-all"
+                   >
+                      <div className="flex items-center gap-4">
+                         <div className={`w-12 h-12 rounded-2xl flex items-center justify-center border transition-all ${isRoomLocked ? 'bg-amber-500/20 border-amber-500 text-amber-500' : 'bg-white/5 border-white/5 text-slate-500'}`}>
+                            <Lock className="w-5 h-5" />
+                         </div>
+                         <div className="text-left">
+                            <p className="text-xs font-black text-white uppercase tracking-widest">Lock Room</p>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">{isRoomLocked ? 'No new entries' : 'Anyone can enter'}</p>
+                         </div>
+                      </div>
+                      <div className={`w-12 h-6 rounded-full relative transition-all ${isRoomLocked ? 'bg-amber-500' : 'bg-slate-800'}`}>
+                         <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${isRoomLocked ? 'right-1' : 'left-1'}`} />
+                      </div>
+                   </button>
+
+                   <button className="w-full p-6 rounded-3xl bg-white/5 border border-white/5 flex items-center justify-between group hover:bg-rose-500/10 transition-all opacity-50 cursor-not-allowed">
+                      <div className="flex items-center gap-4">
+                         <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-500">
+                            <Shield className="w-5 h-5" />
+                         </div>
+                         <div className="text-left">
+                            <p className="text-xs font-black text-white uppercase tracking-widest">End Session</p>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Host only action</p>
+                         </div>
+                      </div>
+                   </button>
+                </div>
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {levelUpData && (
           <motion.div 
             initial={{ opacity: 0, scale: 0.5 }}
@@ -525,7 +796,6 @@ export const RoomScreen = () => {
           </motion.div>
         )}
       </AnimatePresence>
-
 
       <AnimatePresence>
         {giftAlert && (

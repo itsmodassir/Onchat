@@ -11,6 +11,7 @@ const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const dotenv_1 = __importDefault(require("dotenv"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 dotenv_1.default.config();
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const room_routes_1 = __importDefault(require("./routes/room.routes"));
@@ -24,9 +25,10 @@ const moderation_routes_1 = __importDefault(require("./routes/moderation.routes"
 const monetization_routes_1 = __importDefault(require("./routes/monetization.routes"));
 const cp_routes_1 = __importDefault(require("./routes/cp.routes"));
 const agency_routes_1 = __importDefault(require("./routes/agency.routes"));
-const game_routes_1 = __importDefault(require("./routes/game.routes"));
+const luck_routes_1 = __importDefault(require("./routes/luck.routes"));
 const reseller_routes_1 = __importDefault(require("./routes/reseller.routes"));
 const storage_routes_1 = __importDefault(require("./routes/storage.routes"));
+const user_routes_1 = __importDefault(require("./routes/user.routes"));
 const path_1 = __importDefault(require("path"));
 const redis_adapter_1 = require("@socket.io/redis-adapter");
 const ioredis_1 = __importDefault(require("ioredis"));
@@ -67,9 +69,10 @@ app.use('/api/moderation', moderation_routes_1.default);
 app.use('/api/monetization', monetization_routes_1.default);
 app.use('/api/cp', cp_routes_1.default);
 app.use('/api/agency', agency_routes_1.default);
-app.use('/api/luck', game_routes_1.default);
+app.use('/api/luck', luck_routes_1.default);
 app.use('/api/reseller', reseller_routes_1.default);
 app.use('/api/storage', storage_routes_1.default);
+app.use('/api/users', user_routes_1.default);
 // Static Media Serving
 app.use('/uploads', express_1.default.static(path_1.default.join(process.cwd(), 'uploads')));
 // Root route for visual confirmation
@@ -81,7 +84,7 @@ app.get('/', (req, res) => {
       <div style="margin-top: 20px; padding: 15px 30px; border: 1px solid #334155; border-radius: 12px; background: #1e293b;">
         Server Status: <span style="color: #22c55e; font-weight: bold;">ONLINE</span>
       </div>
-      <p style="margin-top: 40px; color: #475569; font-size: 0.9rem;">Connected to: 13.126.135.253</p>
+      <p style="margin-top: 40px; color: #475569; font-size: 0.9rem;">Connected to: Onchat Ecosystem</p>
     </div>
   `);
 });
@@ -98,15 +101,28 @@ app.use((err, req, res, next) => {
     });
 });
 // Socket.io connection logic
+io.use((socket, next) => {
+    const token = socket.handshake.auth.token || socket.handshake.query.token;
+    if (!token)
+        return next(new Error('Authentication error: No token provided'));
+    try {
+        const decoded = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+        socket.userId = decoded.userId || decoded.id;
+        next();
+    }
+    catch (err) {
+        next(new Error('Authentication error: Invalid token'));
+    }
+});
 chat_service_1.chatService.init(io);
 io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
+    console.log('User connected:', socket.id, 'User ID:', socket.userId);
     chat_service_1.chatService.handleSocket(io, socket);
     socket.on('disconnect', () => {
         console.log('User disconnected:', socket.id);
     });
 });
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
+server.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
 });

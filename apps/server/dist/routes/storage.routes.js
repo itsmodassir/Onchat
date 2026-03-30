@@ -50,4 +50,6 @@ router.post('/upload', upload.single('file'), StorageController.uploadMedia);
 router.get('/media', StorageController.getUserMedia);
 router.delete('/media/:id', StorageController.deleteMedia);
 router.get('/stats', StorageController.getStorageStats);
+router.post('/set-profile', StorageController.setProfilePhoto);
+router.post('/set-cover', StorageController.setCoverPhoto);
 exports.default = router;

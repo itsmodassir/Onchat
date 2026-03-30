@@ -87,6 +87,64 @@ export const roomService = {
     return participant;
   },
 
+  async joinSeat(roomId: string, userId: string, seatIndex: number) {
+    // Check if room is locked
+    const room = await (prisma.room as any).findUnique({
+      where: { id: roomId },
+      select: { hostId: true, isLocked: true }
+    });
+
+    if (room?.isLocked && room.hostId !== userId) {
+      throw new Error('Room is locked by host. No new speakers allowed.');
+    }
+
+    // Check if seat is already occupied
+    const occupied = await prisma.participant.findFirst({
+      where: { roomId, seatIndex }
+    });
+    if (occupied) throw new Error('Seat already occupied');
+
+    const participant = await (prisma.participant as any).update({
+      where: { userId_roomId: { userId, roomId } },
+      data: { 
+        seatIndex, 
+        role: Role.SPEAKER as any 
+      },
+      include: { user: true }
+    });
+
+    logger.info(`User ${userId} joined seat ${seatIndex} in room ${roomId}`);
+    return participant;
+  },
+
+  async leaveSeat(roomId: string, userId: string) {
+    const participant = await (prisma.participant as any).update({
+      where: { userId_roomId: { userId, roomId } },
+      data: { 
+        seatIndex: null, 
+        role: Role.LISTENER as any 
+      },
+      include: { user: true }
+    });
+
+    logger.info(`User ${userId} left seat in room ${roomId}`);
+    return participant;
+  },
+
+  async kickUser(roomId: string, userId: string) {
+    await prisma.participant.delete({
+      where: { userId_roomId: { userId, roomId } }
+    });
+    logger.info(`User ${userId} kicked from room ${roomId}`);
+  },
+
+  async toggleRoomLock(roomId: string, isLocked: boolean) {
+    return await (prisma.room as any).update({
+      where: { id: roomId },
+      data: { isLocked }
+    });
+  },
+
   async approveJoin(roomId: string, userId: string) {
     const participant = await (prisma.participant as any).update({
       where: { userId_roomId: { userId, roomId } },

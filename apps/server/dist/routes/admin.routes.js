@@ -6,9 +6,17 @@ const auth_middleware_1 = require("../middleware/auth.middleware");
 const router = (0, express_1.Router)();
 router.use(auth_middleware_1.authMiddleware, auth_middleware_1.adminMiddleware);
 router.get('/users', admin_controller_1.adminController.getUsers);
+router.patch('/users/:userId', admin_controller_1.adminController.updateUser);
+router.delete('/users/:userId', admin_controller_1.adminController.deleteUser);
+router.post('/users/:userId/ban', admin_controller_1.adminController.banUser);
 router.get('/stats', admin_controller_1.adminController.getStats);
 router.patch('/users/:userId/balance', admin_controller_1.adminController.updateBalance);
 router.post('/users/:userId/add-coins', admin_controller_1.adminController.addCoins);
 router.patch('/users/:userId/reseller', admin_controller_1.adminController.toggleReseller);
 router.get('/analytics/detailed', admin_controller_1.adminController.getDetailedAnalytics);
+router.get('/activity/stream', admin_controller_1.adminController.getActivityStream);
+// System Management
+router.get('/settings', admin_controller_1.adminController.getSettings);
+router.patch('/settings', admin_controller_1.adminController.updateSettings);
+router.get('/users/:userId/otps', admin_controller_1.adminController.getIdentityLogs);
 exports.default = router;

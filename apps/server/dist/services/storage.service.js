@@ -101,10 +101,38 @@ class StorageService {
         if (!user)
             throw new Error('User not found');
         return {
-            used: user.storageUsed,
-            quota: user.storageQuota,
-            percentage: (user.storageUsed / user.storageQuota) * 100
+            used: user.storageUsed || 0,
+            quota: user.storageQuota || 10737418240, // Default 10GB
+            percentage: ((user.storageUsed || 0) / (user.storageQuota || 10737418240)) * 100
         };
+    }
+    /**
+     * Set user profile photo from existing media
+     */
+    static async setProfilePhoto(userId, mediaId) {
+        const media = await db_1.prisma.media.findUnique({
+            where: { id: mediaId, userId }
+        });
+        if (!media)
+            throw new Error('Media not found');
+        return db_1.prisma.user.update({
+            where: { id: userId },
+            data: { avatar: media.path }
+        });
+    }
+    /**
+     * Set user cover photo from existing media
+     */
+    static async setCoverPhoto(userId, mediaId) {
+        const media = await db_1.prisma.media.findUnique({
+            where: { id: mediaId, userId }
+        });
+        if (!media)
+            throw new Error('Media not found');
+        return db_1.prisma.user.update({
+            where: { id: userId },
+            data: { coverPhoto: media.path }
+        });
     }
 }
 exports.StorageService = StorageService;

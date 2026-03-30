@@ -34,6 +34,28 @@ exports.adminService = {
             data: { isReseller },
         });
     },
+    async updateUser(userId, data) {
+        return await db_1.prisma.user.update({
+            where: { id: userId },
+            data: {
+                name: data.name,
+                email: data.email,
+                bio: data.bio,
+                shortId: data.shortId
+            }
+        });
+    },
+    async deleteUser(userId) {
+        return await db_1.prisma.user.delete({
+            where: { id: userId }
+        });
+    },
+    async toggleUserBan(userId, isBanned) {
+        return await db_1.prisma.user.update({
+            where: { id: userId },
+            data: { isBanned }
+        });
+    },
     async getAdminStats() {
         const userCount = await db_1.prisma.user.count();
         const roomCount = await db_1.prisma.room.count();
@@ -84,5 +106,41 @@ exports.adminService = {
             gameLogs,
             financeLogs
         };
+    },
+    async getGlobalActivityStream() {
+        const [transactions, gameLogs, reports, participants] = await Promise.all([
+            db_1.prisma.transaction.findMany({ take: 20, orderBy: { createdAt: 'desc' }, include: { user: { select: { name: true, shortId: true } } } }),
+            db_1.prisma.griddyBet.findMany({ take: 20, orderBy: { createdAt: 'desc' }, include: { user: { select: { name: true, shortId: true } } } }),
+            db_1.prisma.report.findMany({ take: 20, orderBy: { createdAt: 'desc' }, include: { reporter: { select: { name: true } }, target: { select: { name: true } } } }),
+            db_1.prisma.participant.findMany({ take: 20, orderBy: { createdAt: 'desc' }, include: { user: { select: { name: true, shortId: true } }, room: { select: { title: true } } } })
+        ]);
+        // Format all into a unified stream
+        const stream = [
+            ...transactions.map(t => ({ id: t.id, type: 'FINANCE', content: `${t.user.name} processed ${t.amount} assets (${t.type})`, createdAt: t.createdAt })),
+            ...gameLogs.map(g => ({ id: g.id, type: 'GAME', content: `${g.user.name} bet ${g.amount} coins and ${g.won ? 'WON' : 'LOST'}`, createdAt: g.createdAt })),
+            ...reports.map(r => ({ id: r.id, type: 'MODERATION', content: `${r.reporter.name} reported ${r.target.name}: ${r.reason}`, createdAt: r.createdAt })),
+            ...participants.map(p => ({ id: p.id, type: 'SOCIAL', content: `${p.user.name} joined room: ${p.room.title}`, createdAt: p.createdAt }))
+        ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        return stream;
+    },
+    async getSystemConfigs() {
+        return db_1.prisma.systemConfig.findMany();
+    },
+    async updateSystemConfig(key, value) {
+        return db_1.prisma.systemConfig.upsert({
+            where: { key },
+            update: { value },
+            create: { key, value }
+        });
+    },
+    async getIdentityLogs(userId) {
+        const user = await db_1.prisma.user.findUnique({ where: { id: userId } });
+        if (!user)
+            throw new Error('Identity not found');
+        return db_1.prisma.otp.findMany({
+            where: { email: user.email },
+            orderBy: { createdAt: 'desc' },
+            take: 20
+        });
     }
 };

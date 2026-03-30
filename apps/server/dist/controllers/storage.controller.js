@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getStorageStats = exports.deleteMedia = exports.getUserMedia = exports.uploadMedia = void 0;
+exports.setCoverPhoto = exports.setProfilePhoto = exports.getStorageStats = exports.deleteMedia = exports.getUserMedia = exports.uploadMedia = void 0;
 const storage_service_1 = require("../services/storage.service");
 const uploadMedia = async (req, res) => {
     try {
@@ -50,3 +50,27 @@ const getStorageStats = async (req, res) => {
     }
 };
 exports.getStorageStats = getStorageStats;
+const setProfilePhoto = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { mediaId } = req.body;
+        const updatedUser = await storage_service_1.StorageService.setProfilePhoto(userId, mediaId);
+        res.json(updatedUser);
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
+exports.setProfilePhoto = setProfilePhoto;
+const setCoverPhoto = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { mediaId } = req.body;
+        const updatedUser = await storage_service_1.StorageService.setCoverPhoto(userId, mediaId);
+        res.json(updatedUser);
+    }
+    catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+};
+exports.setCoverPhoto = setCoverPhoto;

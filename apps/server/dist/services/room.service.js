@@ -79,6 +79,56 @@ exports.roomService = {
         }
         return participant;
     },
+    async joinSeat(roomId, userId, seatIndex) {
+        // Check if room is locked
+        const room = await db_1.prisma.room.findUnique({
+            where: { id: roomId },
+            select: { hostId: true, isLocked: true }
+        });
+        if (room?.isLocked && room.hostId !== userId) {
+            throw new Error('Room is locked by host. No new speakers allowed.');
+        }
+        // Check if seat is already occupied
+        const occupied = await db_1.prisma.participant.findFirst({
+            where: { roomId, seatIndex }
+        });
+        if (occupied)
+            throw new Error('Seat already occupied');
+        const participant = await db_1.prisma.participant.update({
+            where: { userId_roomId: { userId, roomId } },
+            data: {
+                seatIndex,
+                role: Role.SPEAKER
+            },
+            include: { user: true }
+        });
+        logger_1.logger.info(`User ${userId} joined seat ${seatIndex} in room ${roomId}`);
+        return participant;
+    },
+    async leaveSeat(roomId, userId) {
+        const participant = await db_1.prisma.participant.update({
+            where: { userId_roomId: { userId, roomId } },
+            data: {
+                seatIndex: null,
+                role: Role.LISTENER
+            },
+            include: { user: true }
+        });
+        logger_1.logger.info(`User ${userId} left seat in room ${roomId}`);
+        return participant;
+    },
+    async kickUser(roomId, userId) {
+        await db_1.prisma.participant.delete({
+            where: { userId_roomId: { userId, roomId } }
+        });
+        logger_1.logger.info(`User ${userId} kicked from room ${roomId}`);
+    },
+    async toggleRoomLock(roomId, isLocked) {
+        return await db_1.prisma.room.update({
+            where: { id: roomId },
+            data: { isLocked }
+        });
+    },
     async approveJoin(roomId, userId) {
         const participant = await db_1.prisma.participant.update({
             where: { userId_roomId: { userId, roomId } },

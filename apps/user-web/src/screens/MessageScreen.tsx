@@ -1,21 +1,27 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { 
   Users, UserPlus, Heart, Slash, Bell, 
   Search, MessageSquare, 
-  ShieldCheck, Send, ArrowLeft
+  ShieldCheck, Send, ArrowLeft, X, Loader2
 } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { useStore } from '../store';
 import api from '../utils/api';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
-const SOCKET_URL = 'https://api.onchat.fun';
+const SOCKET_URL = 'http://localhost:5000'; // Updated to local for dev
 
 export const MessageScreen = () => {
   const { user } = useStore();
+  const navigate = useNavigate();
   const socketRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
@@ -29,20 +35,12 @@ export const MessageScreen = () => {
   useEffect(() => {
     if (!user?.id) return;
     
-    socketRef.current = io(SOCKET_URL);
-    socketRef.current.emit('register', user.id);
-
-    socketRef.current.on('new-private-message', (data: any) => {
-      // If message is from the currently selected user, add to message list
-      if (selectedUser && data.senderId === selectedUser.id) {
-        setMessages((prev) => [...prev, data]);
-      }
-      // Refresh conversation list to show latest message/unread
-      fetchConversations();
+    socketRef.current = io(SOCKET_URL, {
+      auth: { token: useStore.getState().token }
     });
 
-    socketRef.current.on('private-message-sent', (data: any) => {
-      if (selectedUser && data.receiverId === selectedUser.id) {
+    socketRef.current.on('new-private-message', (data: any) => {
+      if (selectedUser && (data.senderId === selectedUser.id || data.receiverId === selectedUser.id)) {
         setMessages((prev) => [...prev, data]);
       }
       fetchConversations();
@@ -84,13 +82,38 @@ export const MessageScreen = () => {
     }
   };
 
+  const handleSearch = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const { data } = await api.get(`/users/search?q=${query}`);
+      setSearchResults(data);
+    } catch (error) {
+      console.error('Search failed:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery) handleSearch(searchQuery);
+      else setSearchResults([]);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, handleSearch]);
+
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || !selectedUser) return;
 
     const messageData = {
       toUserId: selectedUser.id,
-      fromUserId: user?.id,
       content: inputText,
     };
 
@@ -98,16 +121,10 @@ export const MessageScreen = () => {
     setInputText('');
   };
 
-  const handleAddFriend = async () => {
-    const shortId = prompt('Enter User Protocol ID (Short ID):');
-    if (!shortId) return;
-    try {
-      await api.post('/social/follow', { userId: shortId }); // Fixed: targetId -> userId based on controller
-      alert('Handshake request transmitted.');
-      fetchConversations();
-    } catch (error: any) {
-      alert(error.response?.data?.error || 'Target identity not found.');
-    }
+  const handleStartChat = (targetUser: any) => {
+    setSelectedUser(targetUser);
+    setSearchQuery('');
+    setSearchResults([]);
   };
 
   const socialCategories = [
@@ -118,20 +135,14 @@ export const MessageScreen = () => {
   ];
 
   return (
-    <div className="flex h-[calc(100vh-120px)] gap-8 p-8 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="flex h-[calc(100vh-120px)] gap-8 p-4 md:p-8 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Social Sidebar */}
-      <aside className={`w-96 flex flex-col gap-8 ${selectedUser ? 'hidden lg:flex' : 'flex'}`}>
+      <aside className={`w-full md:w-96 flex flex-col gap-8 ${selectedUser ? 'hidden lg:flex' : 'flex'}`}>
         {/* Header & Controls */}
         <div className="space-y-6">
            <div className="flex items-center justify-between">
               <h1 className="text-4xl font-black text-white tracking-tight">Signals</h1>
               <div className="flex gap-2">
-                 <button 
-                  onClick={handleAddFriend}
-                  className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/20 hover:scale-105 active:scale-95 transition-all"
-                 >
-                    <UserPlus className="w-5 h-5" />
-                 </button>
                  <button className="w-10 h-10 rounded-xl bg-slate-900 border border-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-all">
                     <Bell className="w-5 h-5" />
                  </button>
@@ -147,8 +158,51 @@ export const MessageScreen = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-slate-900 border border-white/5 rounded-2xl py-4 pl-12 pr-4 text-sm text-white focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all placeholder:text-slate-700 font-bold"
               />
+              {isSearching && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500 animate-spin" />}
            </div>
         </div>
+
+        {/* Search Results Overlay / Section */}
+        <AnimatePresence>
+          {searchQuery && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="glass-card rounded-3xl border-indigo-500/20 bg-indigo-950/20 overflow-hidden"
+            >
+              <div className="p-4 border-b border-white/5 flex justify-between items-center">
+                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Global Search</span>
+                <button onClick={() => setSearchQuery('')} className="text-slate-500 hover:text-white"><X className="w-4 h-4" /></button>
+              </div>
+              <div className="max-h-60 overflow-y-auto p-2">
+                {searchResults.length === 0 && !isSearching ? (
+                  <p className="text-center py-4 text-xs text-slate-600 font-bold uppercase tracking-tight">No identities found</p>
+                ) : (
+                  searchResults.map((u) => (
+                    <div 
+                      key={u.id}
+                      onClick={() => handleStartChat(u)}
+                      className="flex items-center gap-4 p-3 hover:bg-white/5 rounded-2xl cursor-pointer group"
+                    >
+                      <img src={u.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.id}`} className="w-10 h-10 rounded-xl bg-slate-800" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-black text-white truncate">{u.name}</p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">UID: {u.shortId}</p>
+                      </div>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); navigate(`/profile/${u.id}`); }}
+                        className="p-2 opacity-0 group-hover:opacity-100 transition-all text-indigo-400 hover:text-white"
+                      >
+                        <Users className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Categories Horizontal */}
         <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
@@ -173,7 +227,7 @@ export const MessageScreen = () => {
                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">No active signals detected</p>
              </div>
            )}
-           {conversations.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).map((conv) => (
+           {conversations.map((conv) => (
              <motion.div 
                whileHover={{ x: 4 }}
                key={conv.id}
@@ -188,7 +242,7 @@ export const MessageScreen = () => {
                    <div className="flex items-center justify-between mb-1">
                       <h3 className="text-sm font-black truncate text-white">{conv.name}</h3>
                       <span className="text-[10px] text-slate-600 font-bold">
-                        {new Date(conv.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {conv.time ? new Date(conv.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                       </span>
                    </div>
                    <p className="text-xs text-slate-500 truncate font-medium">{conv.lastMessage}</p>
@@ -228,7 +282,7 @@ export const MessageScreen = () => {
                          <h2 className="text-xl font-black text-white tracking-tight">{selectedUser.name}</h2>
                          <div className="flex items-center gap-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Active Frequency</span>
+                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-indigo-400" onClick={() => navigate(`/profile/${selectedUser.id}`)}>View Profile</span>
                          </div>
                       </div>
                    </div>
@@ -254,7 +308,7 @@ export const MessageScreen = () => {
                        >
                           <div className={`max-w-[70%] p-5 rounded-3xl text-sm font-medium leading-relaxed ${
                             user && msg.senderId === user.id 
-                            ? 'bg-indigo-600 text-white rounded-tr-sm' 
+                            ? 'bg-indigo-600 text-white rounded-tr-sm shadow-lg shadow-indigo-600/20' 
                             : 'bg-slate-900 border border-white/5 text-slate-100 rounded-tl-sm'
                           }`}>
                              {msg.content}
@@ -299,7 +353,7 @@ export const MessageScreen = () => {
                 
                 <div className="w-24 h-24 rounded-[2.5rem] bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mx-auto shadow-2xl shadow-indigo-600/10">
                    <MessageSquare className="w-10 h-10" />
-                </div>
+                 </div>
                 <div className="text-center space-y-2">
                    <h2 className="text-2xl font-black text-white tracking-tight uppercase">Terminal Offline</h2>
                    <p className="text-xs text-slate-500 font-black uppercase tracking-[0.2em] leading-relaxed max-w-xs mx-auto">

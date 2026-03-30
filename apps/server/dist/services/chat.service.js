@@ -40,6 +40,9 @@ const logger_1 = require("../utils/logger");
 const monetization_service_1 = require("./monetization.service");
 const notification_service_1 = require("./notification.service");
 const moderation_service_1 = require("./moderation.service");
+const gamification_service_1 = require("./gamification.service");
+const game_service_1 = require("./game.service");
+const room_service_1 = require("./room.service");
 const userSockets = new Map();
 exports.chatService = {
     async saveMessage(roomId, userId, content) {
@@ -62,30 +65,73 @@ exports.chatService = {
         io.to(roomId).emit('new-message', message);
     },
     handleSocket(io, socket) {
-        socket.on('register', (userId) => {
-            userSockets.set(userId, socket.id);
-            logger_1.logger.info(`User ${userId} registered with socket ${socket.id}`);
+        const userId = socket.userId;
+        if (!userId) {
+            logger_1.logger.error(`Socket connected without userId: ${socket.id}`);
+            return;
+        }
+        socket.on('register', (providedUserId) => {
+            const activeUserId = userId || providedUserId;
+            if (activeUserId) {
+                userSockets.set(activeUserId, socket.id);
+                logger_1.logger.info(`User ${activeUserId} registered with socket ${socket.id}`);
+                // Start XP Heartbeat (5 XP every 5 minutes)
+                const heartbeatInterval = setInterval(async () => {
+                    try {
+                        await gamification_service_1.gamificationService.awardXP(activeUserId, 5, 'active_participation');
+                    }
+                    catch (err) {
+                        logger_1.logger.error(`Heartbeat XP error for ${activeUserId}: ${err}`);
+                    }
+                }, 5 * 60 * 1000);
+                socket.heartbeatInterval = heartbeatInterval;
+                // Listen for Wallet and Level Updates for this user
+                eventBus_1.eventBus.subscribe(eventBus_1.EVENTS.WALLET_UPDATE, (data) => {
+                    if (data.userId === activeUserId) {
+                        socket.emit('wallet-update', data);
+                    }
+                });
+                eventBus_1.eventBus.subscribe(eventBus_1.EVENTS.LEVEL_UP, (data) => {
+                    if (data.userId === activeUserId) {
+                        socket.emit('level-up', data);
+                    }
+                });
+            }
         });
         socket.on('join-room', async (data) => {
-            socket.join(data.roomId);
+            const roomId = typeof data === 'string' ? data : data.roomId;
+            if (!roomId)
+                return;
+            socket.join(roomId);
             const user = await db_1.prisma.user.findUnique({
-                where: { id: data.userId },
+                where: { id: userId },
                 select: { id: true, name: true, avatar: true, shortId: true }
             });
-            io.to(data.roomId).emit('user-joined', { roomId: data.roomId, user });
-            logger_1.logger.info(`User ${data.userId} joined room ${data.roomId}`);
+            if (user) {
+                io.to(roomId).emit('user-joined', { roomId, user });
+                logger_1.logger.info(`User ${userId} joined room ${roomId}`);
+                // Award XP for joining
+                await gamification_service_1.gamificationService.awardXP(userId, 5, 'room_join');
+            }
         });
         socket.on('leave-room', (data) => {
-            socket.leave(data.roomId);
-            io.to(data.roomId).emit('user-left', { roomId: data.roomId, userId: data.userId });
-            logger_1.logger.info(`User ${data.userId} left room ${data.roomId}`);
+            const roomId = typeof data === 'string' ? data : data.roomId;
+            if (!roomId)
+                return;
+            socket.leave(roomId);
+            io.to(roomId).emit('user-left', { roomId, userId: userId });
+            logger_1.logger.info(`User ${userId} left room ${roomId}`);
         });
         socket.on('send-message', async (data) => {
             try {
-                const message = await exports.chatService.saveMessage(data.roomId, data.userId, data.content);
+                if (!data.roomId || !data.content)
+                    return;
+                const message = await exports.chatService.saveMessage(data.roomId, userId, data.content);
                 exports.chatService.broadcastMessage(io, data.roomId, message);
-                eventBus_1.eventBus.publish(eventBus_1.EVENTS.MESSAGE_SENT, { roomId: data.roomId, userId: data.userId, messageId: message.id });
-                logger_1.logger.info(`Message sent in room ${data.roomId} by user ${data.userId}`);
+                eventBus_1.eventBus.publish(eventBus_1.EVENTS.MESSAGE_SENT, { roomId: data.roomId, userId: userId, messageId: message.id });
+                logger_1.logger.info(`Message sent in room ${data.roomId} by user ${userId}`);
+                // Award XP for messaging
+                await gamification_service_1.gamificationService.awardXP(userId, 2, 'message_sent');
             }
             catch (error) {
                 logger_1.logger.error(`Error saving message: ${error}`);
@@ -111,9 +157,14 @@ exports.chatService = {
         });
         socket.on('send-gift', async (data) => {
             try {
-                await monetization_service_1.monetizationService.sendGift(data.fromUserId, data.toUserId, data.points);
-                io.to(data.roomId).emit('new-gift', data);
-                logger_1.logger.info(`Gift ${data.giftName} sent from ${data.fromUserId} to ${data.toUserId} in room ${data.roomId}`);
+                await monetization_service_1.monetizationService.sendGift(userId, data.toUserId, data.points);
+                io.to(data.roomId).emit('new-gift-alert', {
+                    fromUserId: userId,
+                    toUserId: data.toUserId,
+                    giftId: data.giftId,
+                    points: data.points
+                });
+                logger_1.logger.info(`Gift ${data.giftId} sent from ${userId} to ${data.toUserId} in room ${data.roomId}`);
             }
             catch (error) {
                 socket.emit('error', { message: error.message });
@@ -121,24 +172,154 @@ exports.chatService = {
             }
         });
         socket.on('send-private-message', async (data) => {
-            const targetSocketId = userSockets.get(data.toUserId);
-            if (targetSocketId) {
-                io.to(targetSocketId).emit('new-private-message', data);
-            }
-            else {
-                // Target user is offline, send push notification
-                try {
-                    const sender = await db_1.prisma.user.findUnique({ where: { id: data.fromUserId }, select: { name: true } });
-                    const senderName = sender?.name || 'Someone';
-                    await notification_service_1.notificationService.sendPushNotification(data.toUserId, `New message from ${senderName}`, data.content, { type: 'PRIVATE_MESSAGE', fromUserId: data.fromUserId });
+            try {
+                const privateMessage = await db_1.prisma.privateMessage.create({
+                    data: {
+                        content: data.content,
+                        senderId: data.fromUserId,
+                        receiverId: data.toUserId,
+                    },
+                    include: {
+                        sender: { select: { name: true, avatar: true } },
+                    },
+                });
+                const targetSocketId = userSockets.get(data.toUserId);
+                if (targetSocketId) {
+                    io.to(targetSocketId).emit('new-private-message', privateMessage);
                 }
-                catch (error) {
-                    logger_1.logger.error('Failed to send push notification', error);
+                else {
+                    // Target user is offline, send push notification
+                    try {
+                        await notification_service_1.notificationService.sendPushNotification(data.toUserId, `New message from ${privateMessage.sender.name}`, data.content, { type: 'PRIVATE_MESSAGE', fromUserId: data.fromUserId });
+                    }
+                    catch (error) {
+                        logger_1.logger.error('Failed to send push notification', error);
+                    }
                 }
+                // Also emit back to the sender for confirmation/sync across their devices
+                socket.emit('private-message-sent', privateMessage);
+                logger_1.logger.info(`Private message persisted and sent from ${data.fromUserId} to ${data.toUserId}`);
             }
-            logger_1.logger.info(`Private message from ${data.fromUserId} to ${data.toUserId}`);
+            catch (error) {
+                logger_1.logger.error(`Error saving private message: ${error}`);
+            }
+        });
+        socket.on('toggle-mute', (data) => {
+            io.to(data.roomId).emit('user-mute-updated', { userId, isMuted: data.isMuted });
+            logger_1.logger.info(`User ${userId} mute state in room ${data.roomId}: ${data.isMuted}`);
+        });
+        socket.on('lock-seat', (data) => {
+            io.to(data.roomId).emit('seat-locked', { seatIndex: data.seatIndex });
+        });
+        socket.on('unlock-seat', (data) => {
+            io.to(data.roomId).emit('seat-unlocked', { seatIndex: data.seatIndex });
+        });
+        socket.on('join-seat', async (data) => {
+            try {
+                const participant = await room_service_1.roomService.joinSeat(data.roomId, userId, data.seatIndex);
+                io.to(data.roomId).emit('seat-joined', {
+                    userId,
+                    seatIndex: data.seatIndex,
+                    user: participant.user
+                });
+                logger_1.logger.info(`User ${userId} joined seat ${data.seatIndex} in room ${data.roomId}`);
+            }
+            catch (err) {
+                socket.emit('error', { message: err.message });
+            }
+        });
+        socket.on('leave-seat', async (data) => {
+            try {
+                await room_service_1.roomService.leaveSeat(data.roomId, userId);
+                io.to(data.roomId).emit('seat-left', { userId });
+                logger_1.logger.info(`User ${userId} left seat in room ${data.roomId}`);
+            }
+            catch (err) {
+                socket.emit('error', { message: err.message });
+            }
+        });
+        socket.on('remove-from-seat', async (data) => {
+            try {
+                // Verify host (simplified check: fetch room)
+                const room = await db_1.prisma.room.findUnique({ where: { id: data.roomId } });
+                if (room?.hostId !== userId)
+                    throw new Error('Only host can remove from seat');
+                await room_service_1.roomService.leaveSeat(data.roomId, data.targetUserId);
+                io.to(data.roomId).emit('seat-left', { userId: data.targetUserId });
+                logger_1.logger.info(`Host ${userId} removed ${data.targetUserId} from seat in room ${data.roomId}`);
+            }
+            catch (err) {
+                socket.emit('error', { message: err.message });
+            }
+        });
+        socket.on('kick-user', async (data) => {
+            try {
+                // Authenticate as host (simplified for now)
+                await room_service_1.roomService.kickUser(data.roomId, data.targetUserId);
+                // Find target socket and force them to leave
+                const targetSocketId = userSockets.get(data.targetUserId);
+                if (targetSocketId) {
+                    const targetSocket = io.sockets.sockets.get(targetSocketId);
+                    if (targetSocket) {
+                        targetSocket.leave(data.roomId);
+                        targetSocket.emit('kicked-from-room', { roomId: data.roomId });
+                    }
+                }
+                io.to(data.roomId).emit('user-kicked', { userId: data.targetUserId });
+            }
+            catch (err) {
+                socket.emit('error', { message: err.message });
+            }
+        });
+        socket.on('toggle-room-lock', async (data) => {
+            try {
+                await room_service_1.roomService.toggleRoomLock(data.roomId, data.isLocked);
+                io.to(data.roomId).emit('room-lock-updated', { isLocked: data.isLocked });
+            }
+            catch (err) {
+                socket.emit('error', { message: err.message });
+            }
+        });
+        socket.on('start-griddy-round', async (data) => {
+            try {
+                const roundInfo = await game_service_1.gameService.startRound(data.roomId);
+                io.to(data.roomId).emit('griddy-round-started', roundInfo);
+                // Start 10s Countdown
+                let timeLeft = 10;
+                const countdown = setInterval(() => {
+                    timeLeft--;
+                    if (timeLeft > 0) {
+                        io.to(data.roomId).emit('griddy-countdown', { timeLeft });
+                    }
+                    else {
+                        clearInterval(countdown);
+                        // Process Round
+                        game_service_1.gameService.processRound(data.roomId).then(result => {
+                            io.to(data.roomId).emit('griddy-round-result', result);
+                        }).catch(err => {
+                            logger_1.logger.error(`Error processing round in ${data.roomId}: ${err}`);
+                        });
+                    }
+                }, 1000);
+            }
+            catch (err) {
+                socket.emit('error', { message: err.message });
+            }
+        });
+        socket.on('place-griddy-bet', async (data) => {
+            try {
+                const betInfo = await game_service_1.gameService.placeBet(data.roomId, userId, data.betAmount);
+                io.to(data.roomId).emit('griddy-bet-placed', betInfo);
+            }
+            catch (err) {
+                socket.emit('error', { message: err.message });
+            }
         });
         socket.on('disconnect', () => {
+            // Clear Heartbeat
+            if (socket.heartbeatInterval) {
+                clearInterval(socket.heartbeatInterval);
+            }
             for (const [userId, socketId] of userSockets.entries()) {
                 if (socketId === socket.id) {
                     userSockets.delete(userId);

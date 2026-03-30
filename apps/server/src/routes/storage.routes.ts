@@ -15,5 +15,7 @@ router.use(authMiddleware as any);
 (router as any).get('/media', StorageController.getUserMedia);
 (router as any).delete('/media/:id', StorageController.deleteMedia);
 (router as any).get('/stats', StorageController.getStorageStats);
+(router as any).post('/set-profile', StorageController.setProfilePhoto);
+(router as any).post('/set-cover', StorageController.setCoverPhoto);
 
 export default router;

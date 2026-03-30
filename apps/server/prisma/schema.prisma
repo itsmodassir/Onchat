@@ -3,7 +3,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../node_modules/@prisma/client"
 }
 
 datasource db {
@@ -47,6 +46,7 @@ model User {
   withdrawalRequests WithdrawalRequest[]
   interests         String[]       @default([])
   expoPushToken     String?
+  coverPhoto        String?
   
   // Tier 3: Profile Enhancements
   asUser1           Couple[]       @relation("User1Couple")
@@ -132,6 +132,7 @@ model Room {
   image              String?
   hostId             String
   requiresPermission Boolean       @default(false)
+  isLocked           Boolean       @default(false)
   isScheduled        Boolean       @default(false)
   scheduledAt        DateTime?
   host               User          @relation("HostRooms", fields: [hostId], references: [id])
@@ -155,6 +156,8 @@ model Participant {
   userId    String
   roomId    String
   role      Role     @default(LISTENER)
+  seatIndex Int?
+  isMuted   Boolean  @default(false)
   status    ParticipantStatus @default(JOINED)
   user      User     @relation(fields: [userId], references: [id])
   room      Room     @relation(fields: [roomId], references: [id])
