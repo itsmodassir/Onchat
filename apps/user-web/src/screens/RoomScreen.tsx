@@ -165,7 +165,7 @@ export const RoomScreen = () => {
       });
     });
 
-    socketRef.current.on('seat-joined', (data: { userId: string; seatIndex: number }) => {
+    socketRef.current.on('seat-joined', (_data: { userId: string; seatIndex: number }) => {
       // In a real app we'd fetch the user details, for now we let it sync
       fetchRoomDetails();
     });
