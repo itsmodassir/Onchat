@@ -82,7 +82,7 @@ app.get('/', (req, res) => {
       <div style="margin-top: 20px; padding: 15px 30px; border: 1px solid #334155; border-radius: 12px; background: #1e293b;">
         Server Status: <span style="color: #22c55e; font-weight: bold;">ONLINE</span>
       </div>
-      <p style="margin-top: 40px; color: #475569; font-size: 0.9rem;">Connected to: 13.126.135.253</p>
+      <p style="margin-top: 40px; color: #475569; font-size: 0.9rem;">Connected to: Onchat Ecosystem</p>
     </div>
   `);
 });

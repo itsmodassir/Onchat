@@ -2,7 +2,7 @@ import axios from 'axios';
 import { useStore } from '../store';
 
 const api = axios.create({
-  baseURL: 'http://13.126.135.253/api',
+  baseURL: 'https://api.onchat.fun/api',
   headers: {
     'Content-Type': 'application/json',
   },

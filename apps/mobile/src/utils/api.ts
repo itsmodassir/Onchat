@@ -2,7 +2,7 @@ import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 
 // Replace with your local IP for physical device testing
-const BASE_URL = 'http://13.126.135.253/api';
+const BASE_URL = 'https://api.onchat.fun/api';
 
 const api = axios.create({
   baseURL: BASE_URL,

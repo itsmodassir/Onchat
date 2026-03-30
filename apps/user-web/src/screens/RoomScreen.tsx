@@ -16,7 +16,7 @@ import { InviteFriendModal } from '../components/InviteFriendModal';
 
 const AppLink = (Link as any);
 
-const SOCKET_URL = 'http://13.126.135.253';
+const SOCKET_URL = 'https://api.onchat.fun';
 const AGORA_APP_ID = '9d18a75d24414470bc079f500ea3a7a6';
 
 export const RoomScreen = () => {
