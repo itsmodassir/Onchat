@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Keyboard
 import { Send, ChevronLeft } from 'lucide-react-native';
 import { io } from 'socket.io-client';
 import { useAuthStore } from '../store/authStore';
+import api from '../utils/api';
 
 const SOCKET_URL = 'https://api.onchat.fun';
 
@@ -14,22 +15,41 @@ const ChatDetailScreen = ({ route, navigation }: any) => {
   const socketRef = useRef<any>(null);
 
   useEffect(() => {
+    fetchHistory();
+  }, []);
+
+  useEffect(() => {
     socketRef.current = io(SOCKET_URL);
-    socketRef.current.emit('register', user.id);
+    socketRef.current.emit('register', user?.id);
 
     socketRef.current.on('new-private-message', (data: any) => {
-      if (data.fromUserId === recipientId) {
-        setMessages((prev) => [...prev, { id: Date.now().toString(), text: data.content, senderId: recipientId }]);
+      if (data.senderId === recipientId) {
+        setMessages((prev) => [...prev, data]);
+      }
+    });
+
+    socketRef.current.on('private-message-sent', (data: any) => {
+      if (data.receiverId === recipientId) {
+        setMessages((prev) => [...prev, data]);
       }
     });
 
     return () => {
       socketRef.current.disconnect();
     };
-  }, []);
+  }, [user?.id]);
+
+  const fetchHistory = async () => {
+    try {
+      const res = await api.get(`/social/history/${recipientId}`);
+      setMessages(res.data);
+    } catch (err) {
+      console.error('Failed to fetch history', err);
+    }
+  };
 
   const sendMessage = () => {
-    if (inputText.trim() === '') return;
+    if (inputText.trim() === '' || !user?.id) return;
 
     const messageData = {
       toUserId: recipientId,
@@ -38,14 +58,13 @@ const ChatDetailScreen = ({ route, navigation }: any) => {
     };
 
     socketRef.current.emit('send-private-message', messageData);
-    setMessages((prev) => [...prev, { id: Date.now().toString(), text: inputText, senderId: user.id }]);
     setInputText('');
   };
 
   const renderMessage = ({ item }: any) => (
-    <View style={[styles.messageBubble, item.senderId === user.id ? styles.myMessage : styles.theirMessage]}>
-      <Text style={[styles.messageText, item.senderId === user.id ? styles.myMessageText : styles.theirMessageText]}>
-        {item.text}
+    <View style={[styles.messageBubble, item.senderId === user?.id ? styles.myMessage : styles.theirMessage]}>
+      <Text style={[styles.messageText, item.senderId === user?.id ? styles.myMessageText : styles.theirMessageText]}>
+        {item.content}
       </Text>
     </View>
   );

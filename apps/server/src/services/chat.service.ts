@@ -94,25 +94,42 @@ export const chatService = {
     });
 
     socket.on('send-private-message', async (data: { toUserId: string; fromUserId: string; content: string }) => {
-      const targetSocketId = userSockets.get(data.toUserId);
-      if (targetSocketId) {
-        io.to(targetSocketId).emit('new-private-message', data);
-      } else {
-        // Target user is offline, send push notification
-        try {
-          const sender = await prisma.user.findUnique({ where: { id: data.fromUserId }, select: { name: true } as any });
-          const senderName = sender?.name || 'Someone';
-          await notificationService.sendPushNotification(
-            data.toUserId,
-            `New message from ${senderName}`,
-            data.content,
-            { type: 'PRIVATE_MESSAGE', fromUserId: data.fromUserId }
-          );
-        } catch (error) {
-          logger.error('Failed to send push notification', error);
+      try {
+        const privateMessage = await prisma.privateMessage.create({
+          data: {
+            content: data.content,
+            senderId: data.fromUserId,
+            receiverId: data.toUserId,
+          },
+          include: {
+            sender: { select: { name: true, avatar: true } },
+          },
+        });
+
+        const targetSocketId = userSockets.get(data.toUserId);
+        if (targetSocketId) {
+          io.to(targetSocketId).emit('new-private-message', privateMessage);
+        } else {
+          // Target user is offline, send push notification
+          try {
+            await notificationService.sendPushNotification(
+              data.toUserId,
+              `New message from ${privateMessage.sender.name}`,
+              data.content,
+              { type: 'PRIVATE_MESSAGE', fromUserId: data.fromUserId }
+            );
+          } catch (error) {
+            logger.error('Failed to send push notification', error);
+          }
         }
+        
+        // Also emit back to the sender for confirmation/sync across their devices
+        socket.emit('private-message-sent', privateMessage);
+        
+        logger.info(`Private message persisted and sent from ${data.fromUserId} to ${data.toUserId}`);
+      } catch (error) {
+        logger.error(`Error saving private message: ${error}`);
       }
-      logger.info(`Private message from ${data.fromUserId} to ${data.toUserId}`);
     });
 
     socket.on('disconnect', () => {

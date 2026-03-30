@@ -11,6 +11,8 @@ router.delete('/unfollow/:userId', socialController.unfollow);
 router.get('/followers/:userId', socialController.getFollowers);
 router.get('/following/:userId', socialController.getFollowing);
 router.get('/friends', socialController.getFriends);
+router.get('/conversations', socialController.getConversations);
+router.get('/history/:targetUserId', socialController.getMessageHistory);
 
 // Tier 3: AI Personalization
 router.patch('/interests', async (req: any, res) => {

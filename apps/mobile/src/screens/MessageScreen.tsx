@@ -10,28 +10,40 @@ const SOCKET_URL = 'https://api.onchat.fun';
 const MessageScreen = ({ navigation }: any) => {
   const { user } = useAuthStore();
   const socketRef = useRef<any>(null);
-  const [messages, setMessages] = useState<any[]>([
-    // Real data will be populated by Socket.io and future REST endpoints
-  ]);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    fetchConversations();
+  }, []);
 
   useEffect(() => {
     socketRef.current = io(SOCKET_URL);
     socketRef.current.emit('register', user.id);
 
-    socketRef.current.on('new-private-message', (data: any) => {
-      setMessages((prev) => [{
-        id: Math.random().toString(),
-        name: 'Private Message',
-        message: data.content,
-        time: 'Now',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=' + data.fromUserId,
-      }, ...prev]);
-    });
+    const handleNewMessage = (data: any) => {
+      fetchConversations();
+    };
+
+    socketRef.current.on('new-private-message', handleNewMessage);
+    socketRef.current.on('private-message-sent', handleNewMessage);
 
     return () => {
       socketRef.current.disconnect();
     };
   }, []);
+
+  const fetchConversations = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/social/conversations');
+      setConversations(res.data);
+    } catch (err) {
+      console.error('Failed to fetch conversations', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const socialCategories = [
     { id: '1', title: 'Friends', icon: <Users size={24} color="#F59E0B" />, bgColor: '#F59E0B20' },
@@ -114,7 +126,7 @@ const MessageScreen = ({ navigation }: any) => {
       </View>
 
       <FlatList
-        data={messages}
+        data={conversations}
         renderItem={renderMessage}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.messageList}
