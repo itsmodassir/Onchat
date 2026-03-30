@@ -137,6 +137,7 @@ model Room {
   scheduledAt        DateTime?
   host               User          @relation("HostRooms", fields: [hostId], references: [id])
   status             RoomStatus    @default(ACTIVE)
+  lockedSeats        Int[]         @default([])
   participants       Participant[]
   messages           Message[]
   familyRooms        FamilyRoom[]

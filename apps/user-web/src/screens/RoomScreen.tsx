@@ -142,6 +142,7 @@ export const RoomScreen = () => {
       setMessages(data.messages || []);
       setParticipants(data.participants || []);
       setIsRoomLocked(data.isLocked || false);
+      setLockedSeatIndexes(new Set(data.lockedSeats || []));
 
       if (data.rtcToken) {
         setupAgora(data.rtcToken);
@@ -255,6 +256,15 @@ export const RoomScreen = () => {
     socketRef.current.on('kicked-from-room', () => {
       alert('You have been kicked from the room by the host.');
       navigate('/');
+    });
+
+    socketRef.current.on('room-ended', () => {
+      alert('The host has ended this session.');
+      navigate('/');
+    });
+
+    socketRef.current.on('error', (err: any) => {
+      alert(`Terminal Alert: ${err.message || 'Operation failed'}`);
     });
 
     socketRef.current.on('new-gift-alert', (_data: any) => {
@@ -773,14 +783,22 @@ export const RoomScreen = () => {
                       </div>
                    </button>
 
-                   <button className="w-full p-6 rounded-3xl bg-white/5 border border-white/5 flex items-center justify-between group hover:bg-rose-500/10 transition-all opacity-50 cursor-not-allowed">
+                   <button 
+                     onClick={() => {
+                        if (confirm('Are you sure you want to end this session? The room will be closed for everyone.')) {
+                            socketRef.current?.emit('end-room', { roomId });
+                            setIsSettingsOpen(false);
+                        }
+                     }}
+                     className="w-full p-6 rounded-3xl bg-white/5 border border-white/5 flex items-center justify-between group hover:bg-rose-500/10 transition-all"
+                   >
                       <div className="flex items-center gap-4">
-                         <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-500">
+                         <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-500 group-hover:text-rose-500 transition-colors">
                             <Shield className="w-5 h-5" />
                          </div>
                          <div className="text-left">
-                            <p className="text-xs font-black text-white uppercase tracking-widest">End Session</p>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Host only action</p>
+                            <p className="text-xs font-black text-white group-hover:text-rose-500 uppercase tracking-widest transition-colors">End Session</p>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">Close room for everyone</p>
                          </div>
                       </div>
                    </button>

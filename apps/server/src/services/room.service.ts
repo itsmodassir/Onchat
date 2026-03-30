@@ -96,14 +96,18 @@ export const roomService = {
   },
 
   async joinSeat(roomId: string, userId: string, seatIndex: number) {
-    // Check if room is locked
+    // Check if room is locked or this specific seat is locked
     const room = await (prisma.room as any).findUnique({
       where: { id: roomId },
-      select: { hostId: true, isLocked: true }
+      select: { hostId: true, isLocked: true, lockedSeats: true }
     });
 
     if (room?.isLocked && room.hostId !== userId) {
       throw new Error('Room is locked by host. No new speakers allowed.');
+    }
+
+    if (room?.lockedSeats?.includes(seatIndex) && room.hostId !== userId) {
+      throw new Error('This seat is locked by the host.');
     }
 
     // Check if seat is already occupied
@@ -124,6 +128,28 @@ export const roomService = {
     logger.info(`User ${userId} joined seat ${seatIndex} in room ${roomId}`);
     return participant;
   },
+
+  async toggleSeatLock(roomId: string, seatIndex: number, isLocked: boolean) {
+    const room = await (prisma.room as any).findUnique({
+      where: { id: roomId },
+      select: { lockedSeats: true }
+    });
+
+    let lockedSeats = room?.lockedSeats || [];
+    if (isLocked) {
+      if (!lockedSeats.includes(seatIndex)) {
+        lockedSeats.push(seatIndex);
+      }
+    } else {
+      lockedSeats = lockedSeats.filter((s: number) => s !== seatIndex);
+    }
+
+    return await (prisma.room as any).update({
+      where: { id: roomId },
+      data: { lockedSeats }
+    });
+  },
+
 
   async leaveSeat(roomId: string, userId: string) {
     const participant = await (prisma.participant as any).update({
@@ -170,28 +196,42 @@ export const roomService = {
   },
 
   async leaveRoom(roomId: string, userId: string) {
-    // 1. Get room details to check if this user is the host
+    // 1. Remove the participant record
+    const participant = await prisma.participant.delete({
+      where: {
+        userId_roomId: { userId, roomId },
+      },
+    });
+
+    // 2. Log if host is leaving, but let the room stay ACTIVE
     const room = await (prisma.room as any).findUnique({
       where: { id: roomId },
       select: { hostId: true }
     });
 
-    // 2. If host is leaving, mark the room as INACTIVE
+    if (room && room.hostId === userId) {
+      logger.info(`Host ${userId} left. Room ${roomId} remains ACTIVE.`);
+    }
+
+    return participant;
+  },
+
+  async endRoom(roomId: string, userId: string) {
+    const room = await (prisma.room as any).findUnique({
+      where: { id: roomId },
+      select: { hostId: true }
+    });
+
     if (room && room.hostId === userId) {
       await (prisma.room as any).update({
         where: { id: roomId },
         data: { status: 'INACTIVE' }
       });
-      logger.info(`Host ${userId} left. Room ${roomId} set to INACTIVE.`);
+      logger.info(`Host ${userId} ended session. Room ${roomId} set to INACTIVE.`);
       eventBus.publish('ROOM_CLOSED', { roomId });
+    } else {
+      throw new Error('Only the host can end the session.');
     }
-
-    // 3. Remove the participant record
-    return await prisma.participant.delete({
-      where: {
-        userId_roomId: { userId, roomId },
-      },
-    });
   },
 
   async getRooms() {

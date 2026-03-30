@@ -199,12 +199,34 @@ export const chatService = {
       logger.info(`User ${userId} mute state in room ${data.roomId}: ${data.isMuted}`);
     });
 
-    socket.on('lock-seat', (data: { roomId: string; seatIndex: number }) => {
-      io.to(data.roomId).emit('seat-locked', { seatIndex: data.seatIndex });
+    socket.on('lock-seat', async (data: { roomId: string; seatIndex: number }) => {
+      try {
+        await roomService.toggleSeatLock(data.roomId, data.seatIndex, true);
+        io.to(data.roomId).emit('seat-locked', { seatIndex: data.seatIndex });
+        logger.info(`Seat ${data.seatIndex} locked in room ${data.roomId}`);
+      } catch (err: any) {
+        socket.emit('error', { message: err.message });
+      }
     });
 
-    socket.on('unlock-seat', (data: { roomId: string; seatIndex: number }) => {
-      io.to(data.roomId).emit('seat-unlocked', { seatIndex: data.seatIndex });
+    socket.on('unlock-seat', async (data: { roomId: string; seatIndex: number }) => {
+      try {
+        await roomService.toggleSeatLock(data.roomId, data.seatIndex, false);
+        io.to(data.roomId).emit('seat-unlocked', { seatIndex: data.seatIndex });
+        logger.info(`Seat ${data.seatIndex} unlocked in room ${data.roomId}`);
+      } catch (err: any) {
+        socket.emit('error', { message: err.message });
+      }
+    });
+
+    socket.on('end-room', async (data: { roomId: string }) => {
+      try {
+        await roomService.endRoom(data.roomId, userId);
+        io.to(data.roomId).emit('room-ended', { roomId: data.roomId });
+        logger.info(`Host ${userId} initiated Room end for ${data.roomId}`);
+      } catch (err: any) {
+        socket.emit('error', { message: err.message });
+      }
     });
 
     socket.on('join-seat', async (data: { roomId: string; seatIndex: number }) => {
