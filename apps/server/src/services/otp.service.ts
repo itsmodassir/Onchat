@@ -38,12 +38,10 @@ export const otpService = {
       }
     });
 
-    const sent = await emailService.sendOtpEmail(email, code, purpose);
-    if (!sent) {
-      // Log OTP to server console as fallback — check server logs if email fails
-      logger.warn(`[OTP FALLBACK] Code for ${email} (${purpose}): ${code}`);
-      // Don't throw — let the OTP flow continue so user can proceed in development
-    }
+    // Run email delivery without awaiting to prevent UI timeouts
+    emailService.sendOtpEmail(email, code, purpose).catch(err => {
+      logger.error(`[ASYNC_OTP_ERROR] Background delivery failed for ${email}: ${err.message}`);
+    });
 
     return otp;
   },
