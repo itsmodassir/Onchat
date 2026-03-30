@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Home, Search, Wallet, User, Store, MessageSquare, 
   Trophy, LogOut, ShieldCheck, Gift, Users, 
