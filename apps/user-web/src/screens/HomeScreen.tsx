@@ -220,10 +220,10 @@ export const HomeScreen = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6"
             >
-              {[1, 2, 3, 4, 5, 6].map(i => (
-                <div key={i} className="aspect-[16/10] rounded-[2.5rem] bg-slate-900/50 animate-pulse border border-white/5" />
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => (
+                <div key={i} className="aspect-[4/3] rounded-[2rem] bg-slate-900/50 animate-pulse border border-white/5" />
               ))}
             </motion.div>
           ) : rooms.length > 0 ? (
@@ -231,7 +231,7 @@ export const HomeScreen = () => {
               key={activeTab}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6"
             >
               {rooms.map(room => (
                 <RoomCard key={room.id} room={room} />
