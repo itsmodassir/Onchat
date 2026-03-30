@@ -108,7 +108,7 @@ export const RoomScreen = () => {
       transports: ['websocket']
     });
 
-    socketRef.current.emit('join-room', roomId);
+    socketRef.current.emit('join-room', { roomId });
 
     socketRef.current.on('new-message', (message: any) => {
       setMessages((prev) => [message, ...prev]);
@@ -124,7 +124,7 @@ export const RoomScreen = () => {
     });
 
     return () => {
-      socketRef.current?.emit('leave-room', { roomId, userId: user?.id });
+      socketRef.current?.emit('leave-room', { roomId });
       socketRef.current?.disconnect();
       localTrack.current?.stop();
       localTrack.current?.close();

@@ -5,6 +5,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
 dotenv.config();
 
 import authRoutes from './routes/auth.routes';
@@ -102,9 +103,22 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 // Socket.io connection logic
+io.use((socket: any, next) => {
+  const token = socket.handshake.auth.token || socket.handshake.query.token;
+  if (!token) return next(new Error('Authentication error: No token provided'));
+  
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
+    socket.userId = decoded.userId || decoded.id;
+    next();
+  } catch (err) {
+    next(new Error('Authentication error: Invalid token'));
+  }
+});
+
 chatService.init(io);
-io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+io.on('connection', (socket: any) => {
+  console.log('User connected:', socket.id, 'User ID:', socket.userId);
   chatService.handleSocket(io, socket);
 
   socket.on('disconnect', () => {

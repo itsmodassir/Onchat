@@ -32,33 +32,52 @@ export const chatService = {
   },
 
   handleSocket(io: any, socket: any) {
-    socket.on('register', (userId: string) => {
-      userSockets.set(userId, socket.id);
-      logger.info(`User ${userId} registered with socket ${socket.id}`);
+    const userId = socket.userId;
+    if (!userId) {
+      logger.error(`Socket connected without userId: ${socket.id}`);
+      return;
+    }
+
+    socket.on('register', (providedUserId?: string) => {
+      const activeUserId = userId || providedUserId;
+      if (activeUserId) {
+        userSockets.set(activeUserId, socket.id);
+        logger.info(`User ${activeUserId} registered with socket ${socket.id}`);
+      }
     });
 
-    socket.on('join-room', async (data: { roomId: string; userId: string }) => {
-      socket.join(data.roomId);
+    socket.on('join-room', async (data: { roomId: string } | string) => {
+      const roomId = typeof data === 'string' ? data : data.roomId;
+      if (!roomId) return;
+
+      socket.join(roomId);
       const user = await prisma.user.findUnique({ 
-        where: { id: data.userId }, 
+        where: { id: userId }, 
         select: { id: true, name: true, avatar: true, shortId: true } as any 
       });
-      io.to(data.roomId).emit('user-joined', { roomId: data.roomId, user });
-      logger.info(`User ${data.userId} joined room ${data.roomId}`);
+      
+      if (user) {
+        io.to(roomId).emit('user-joined', { roomId, user });
+        logger.info(`User ${userId} joined room ${roomId}`);
+      }
     });
 
-    socket.on('leave-room', (data: { roomId: string; userId: string }) => {
-      socket.leave(data.roomId);
-      io.to(data.roomId).emit('user-left', { roomId: data.roomId, userId: data.userId });
-      logger.info(`User ${data.userId} left room ${data.roomId}`);
+    socket.on('leave-room', (data: { roomId: string }) => {
+      const roomId = typeof data === 'string' ? data : data.roomId;
+      if (!roomId) return;
+
+      socket.leave(roomId);
+      io.to(roomId).emit('user-left', { roomId, userId: userId });
+      logger.info(`User ${userId} left room ${roomId}`);
     });
 
-    socket.on('send-message', async (data: { roomId: string; userId: string; content: string }) => {
+    socket.on('send-message', async (data: { roomId: string; content: string }) => {
       try {
-        const message = await chatService.saveMessage(data.roomId, data.userId, data.content);
+        if (!data.roomId || !data.content) return;
+        const message = await chatService.saveMessage(data.roomId, userId, data.content);
         chatService.broadcastMessage(io, data.roomId, message);
-        eventBus.publish(EVENTS.MESSAGE_SENT, { roomId: data.roomId, userId: data.userId, messageId: message.id });
-        logger.info(`Message sent in room ${data.roomId} by user ${data.userId}`);
+        eventBus.publish(EVENTS.MESSAGE_SENT, { roomId: data.roomId, userId: userId, messageId: message.id });
+        logger.info(`Message sent in room ${data.roomId} by user ${userId}`);
       } catch (error) {
         logger.error(`Error saving message: ${error}`);
       }
