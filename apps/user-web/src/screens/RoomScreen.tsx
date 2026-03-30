@@ -74,7 +74,7 @@ export const RoomScreen = () => {
         AGORA_APP_ID, 
         roomId!, 
         rtcToken, 
-        Number(user?.shortId?.slice(0, 8)) || null
+        Number(user?.id?.slice(0, 8)) || null
       );
 
       if (role === 'host') {
@@ -142,6 +142,10 @@ export const RoomScreen = () => {
       setMessages(data.messages || []);
       setParticipants(data.participants || []);
       setIsRoomLocked(data.isLocked || false);
+
+      if (data.rtcToken) {
+        setupAgora(data.rtcToken);
+      }
 
       // Sync local state with participant data
       const me = data.participants?.find((p: any) => p.userId === user?.id);
@@ -288,10 +292,11 @@ export const RoomScreen = () => {
   };
 
   const toggleMute = () => {
-    if (!localTrack.current) return;
     const nextMute = !isMuted;
     setIsMuted(nextMute);
-    localTrack.current.setEnabled(!nextMute);
+    if (localTrack.current) {
+      localTrack.current.setEnabled(!nextMute);
+    }
     socketRef.current?.emit('toggle-mute', { roomId, isMuted: nextMute });
   };
 

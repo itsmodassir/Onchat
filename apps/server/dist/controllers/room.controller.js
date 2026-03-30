@@ -63,7 +63,11 @@ exports.roomController = {
         try {
             const { roomId } = req.params;
             const room = await room_service_1.roomService.getRoomById(roomId);
-            res.json(room);
+            // Generate an audience token for the viewer
+            // Use shortId numeric part as UID or a random one
+            const uid = req.user?.userId ? (Number(req.user.userId.slice(0, 8)) || Math.floor(Math.random() * 100000)) : Math.floor(Math.random() * 100000);
+            const rtcToken = voice_service_1.voiceService.generateRtcToken(roomId, uid, agora_token_1.RtcRole.SUBSCRIBER);
+            res.json({ ...room, rtcToken });
         }
         catch (error) {
             res.status(404).json({ error: error.message });

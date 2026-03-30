@@ -114,13 +114,19 @@ exports.chatService = {
                 await gamification_service_1.gamificationService.awardXP(userId, 5, 'room_join');
             }
         });
-        socket.on('leave-room', (data) => {
+        socket.on('leave-room', async (data) => {
             const roomId = typeof data === 'string' ? data : data.roomId;
             if (!roomId)
                 return;
-            socket.leave(roomId);
-            io.to(roomId).emit('user-left', { roomId, userId: userId });
-            logger_1.logger.info(`User ${userId} left room ${roomId}`);
+            try {
+                await room_service_1.roomService.leaveRoom(roomId, userId);
+                socket.leave(roomId);
+                io.to(roomId).emit('user-left', { roomId, userId: userId });
+                logger_1.logger.info(`User ${userId} left room ${roomId} (Purged from DB)`);
+            }
+            catch (err) {
+                logger_1.logger.error(`Error leaving room ${roomId}: ${err}`);
+            }
         });
         socket.on('send-message', async (data) => {
             try {
@@ -315,14 +321,24 @@ exports.chatService = {
                 socket.emit('error', { message: err.message });
             }
         });
-        socket.on('disconnect', () => {
+        socket.on('disconnect', async () => {
             // Clear Heartbeat
             if (socket.heartbeatInterval) {
                 clearInterval(socket.heartbeatInterval);
             }
-            for (const [userId, socketId] of userSockets.entries()) {
+            for (const [uid, socketId] of userSockets.entries()) {
                 if (socketId === socket.id) {
-                    userSockets.delete(userId);
+                    userSockets.delete(uid);
+                    // Global Clean-up: Purge any active participation in any room on disconnect
+                    try {
+                        await db_1.prisma.participant.deleteMany({
+                            where: { userId: uid }
+                        });
+                        logger_1.logger.info(`User ${uid} disconnected. Purged all room memberships.`);
+                    }
+                    catch (err) {
+                        logger_1.logger.error(`Disconnect cleanup error for user ${uid}: ${err}`);
+                    }
                     break;
                 }
             }

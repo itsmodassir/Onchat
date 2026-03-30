@@ -61,11 +61,17 @@ export const roomController = {
     }
   },
 
-  async getRoomById(req: Request, res: Response) {
+  async getRoomById(req: any, res: Response) {
     try {
       const { roomId } = req.params;
       const room = await roomService.getRoomById(roomId);
-      res.json(room);
+      
+      // Generate an audience token for the viewer
+      // Use shortId numeric part as UID or a random one
+      const uid = req.user?.userId ? (Number(req.user.userId.slice(0, 8)) || Math.floor(Math.random() * 100000)) : Math.floor(Math.random() * 100000);
+      const rtcToken = voiceService.generateRtcToken(roomId, uid, RtcRole.SUBSCRIBER);
+
+      res.json({ ...room, rtcToken });
     } catch (error: any) {
       res.status(404).json({ error: error.message });
     }
