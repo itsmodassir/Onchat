@@ -48,15 +48,24 @@ export const Sidebar = () => {
 
   return (
     <aside className="w-80 h-screen fixed left-0 top-0 nav-blur flex flex-col p-8 z-50">
-      <div className="flex items-center gap-4 mb-12 px-2">
-        <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-xl shadow-indigo-600/20 group cursor-pointer transition-transform hover:scale-105 active:scale-95">
-          <ShieldCheck className="text-white w-6 h-6" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-black tracking-tighter leading-none mb-1">Onchat</h1>
-          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Web Engine v1.0</p>
-        </div>
-      </div>
+      {user && (
+        <AppLink to="/profile" className="flex items-center gap-4 mb-12 px-2 hover:bg-white/5 p-2 rounded-3xl transition-all group">
+          <div className="w-14 h-14 rounded-2xl overflow-hidden border-2 border-indigo-500/30 group-hover:border-indigo-500 transition-colors shadow-2xl">
+            <img 
+              src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.shortId}`} 
+              alt={user.name} 
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-black truncate text-white">{user.name}</h1>
+            <div className="flex items-center gap-2">
+               <div className="px-2 py-0.5 rounded-md bg-indigo-500 text-[8px] font-black text-white uppercase tracking-tighter">LV.{Math.floor(user.coins / 1000) + 1}</div>
+               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest truncate">{user.shortId}</span>
+            </div>
+          </div>
+        </AppLink>
+      )}
 
       <nav className="flex-1 space-y-2">
         <div className="mb-6">
@@ -94,33 +103,26 @@ export const Sidebar = () => {
       </nav>
 
       <div className="mt-auto pt-8 border-t border-white/5">
-        {user ? (
-          <div className="flex items-center gap-4 px-2 mb-8 group cursor-pointer">
-            <div className="w-12 h-12 rounded-2xl overflow-hidden border-2 border-white/5 group-hover:border-indigo-500/50 transition-colors shadow-2xl">
-              <img 
-                src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.shortId}`} 
-                alt={user.name} 
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-black truncate">{user.name}</p>
-              <p className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">LV.{Math.floor(user.coins / 1000) + 1}</p>
-            </div>
-            <button 
-              onClick={logout}
-              className="w-10 h-10 flex items-center justify-center text-slate-600 hover:text-red-500 hover:bg-red-500/5 rounded-xl transition-all"
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
-          </div>
-        ) : (
+        {!user ? (
           <AppLink
             to="/login"
             className="w-full premium-gradient text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3 shadow-xl shadow-indigo-600/20 active:scale-[0.98] transition-all uppercase tracking-widest text-[11px]"
           >
             Terminal Login
           </AppLink>
+        ) : (
+          <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="w-4 h-4 text-indigo-500" />
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Onchat v1.0</span>
+            </div>
+            <button 
+              onClick={logout}
+              className="text-[10px] font-black text-slate-600 hover:text-red-500 uppercase tracking-widest transition-colors flex items-center gap-2"
+            >
+              Disconnect <LogOut className="w-3 h-3" />
+            </button>
+          </div>
         )}
         
         <div className="flex items-center justify-between px-2 pt-4">

@@ -66,8 +66,18 @@ export const socialController = {
         },
         orderBy: { createdAt: 'desc' },
         include: {
-          sender: { select: { id: true, name: true, avatar: true, shortId: true } },
-          receiver: { select: { id: true, name: true, avatar: true, shortId: true } }
+          sender: { 
+            select: { 
+              id: true, name: true, avatar: true, shortId: true,
+              participants: { where: { status: 'JOINED' }, take: 1, include: { room: { select: { id: true, title: true } } } }
+            } 
+          },
+          receiver: { 
+            select: { 
+              id: true, name: true, avatar: true, shortId: true,
+              participants: { where: { status: 'JOINED' }, take: 1, include: { room: { select: { id: true, title: true } } } }
+            } 
+          }
         }
       }) as any;
 
@@ -83,7 +93,8 @@ export const socialController = {
             shortId: otherUser.shortId,
             lastMessage: msg.content,
             time: msg.createdAt,
-            unread: msg.receiverId === userId && !msg.isRead ? 1 : 0
+            unread: msg.receiverId === userId && !msg.isRead ? 1 : 0,
+            activeRoom: otherUser.participants?.[0]?.room || null
           });
         }
       });

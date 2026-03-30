@@ -267,6 +267,18 @@ export const MessageScreen = () => {
                       </span>
                    </div>
                    <p className="text-xs text-slate-500 truncate font-medium">{conv.lastMessage}</p>
+                   {conv.activeRoom && (
+                     <div 
+                       onClick={(e) => {
+                         e.stopPropagation();
+                         navigate(`/room/${conv.activeRoom.id}`);
+                       }}
+                       className="mt-2 flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 w-fit group/room hover:bg-emerald-500/20 transition-all"
+                     >
+                        <div className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">In: {conv.activeRoom.title}</span>
+                     </div>
+                   )}
                 </div>
                 {conv.unread > 0 && (
                   <div className="w-5 h-5 bg-indigo-600 rounded-full flex items-center justify-center text-[10px] font-bold text-white">

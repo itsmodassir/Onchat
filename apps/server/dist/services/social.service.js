@@ -86,10 +86,14 @@ exports.socialService = {
                         name: true,
                         avatar: true,
                         level: true,
+                        participants: { where: { status: 'JOINED' }, take: 1, include: { room: { select: { id: true, title: true } } } }
                     },
                 },
             },
         });
-        return friends.map((f) => f.follower);
+        return friends.map((f) => ({
+            ...f.follower,
+            activeRoom: f.follower.participants?.[0]?.room || null
+        }));
     },
 };
