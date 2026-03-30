@@ -21,6 +21,7 @@ export const GriddyGameOverlay: React.FC<GriddyGameOverlayProps> = ({ isOpen, on
   const [totalBets, setTotalBets] = useState(0);
   const [result, setResult] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
+  const [activeSpinIndex, setActiveSpinIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (!socketRef.current) return;
@@ -43,13 +44,27 @@ export const GriddyGameOverlay: React.FC<GriddyGameOverlayProps> = ({ isOpen, on
 
     socketRef.current.on('griddy-round-result', (data: any) => {
       setGameStatus('SPINNING');
-      // Final delay to match animation
-      setTimeout(() => {
-        setResult(data);
-        setGameStatus('IDLE');
-        setIsPlaying(false);
-        fetchHistory();
-      }, 2000);
+      
+      let spinCount = 0;
+      const flashInterval = setInterval(() => {
+        setActiveSpinIndex(Math.floor(Math.random() * 9) + 1);
+        spinCount++;
+        
+        if (spinCount > 20) {
+          clearInterval(flashInterval);
+          setActiveSpinIndex(null);
+          
+          setResult({
+            position: data.result,
+            isWon: !!myBet && data.multiplier > 0,
+            wonAmount: myBet ? data.multiplier * myBet : 0
+          });
+          
+          setGameStatus('IDLE');
+          setIsPlaying(false);
+          fetchHistory();
+        }
+      }, 100);
     });
 
     return () => {
@@ -137,21 +152,22 @@ export const GriddyGameOverlay: React.FC<GriddyGameOverlayProps> = ({ isOpen, on
                         if (cellNum === 9) cellType = '20x';
 
                         const isWinningCell = result && result.position === cellNum;
+                        const isSpinningHere = activeSpinIndex === cellNum;
                         
                         return (
                           <div 
                             key={i} 
-                            className={`aspect-square rounded-2xl border-2 flex items-center justify-center text-xl font-black transition-all duration-300
-                                ${isPlaying ? 'animate-pulse bg-white/5 border-white/10' : ''}
+                            className={`aspect-square rounded-full md:rounded-2xl border-2 flex items-center justify-center text-xl font-black transition-all duration-150
+                                ${isSpinningHere ? 'bg-indigo-500 border-indigo-400 text-white shadow-[0_0_20px_rgba(99,102,241,0.6)] scale-110 z-10' : ''}
                                 ${isWinningCell && result.isWon ? 'bg-emerald-500 border-emerald-400 text-white shadow-[0_0_30px_rgba(16,185,129,0.5)] scale-110 z-10' : ''}
-                                ${isWinningCell && !result.isWon ? 'bg-rose-500 border-rose-400 text-white opacity-50' : ''}
-                                ${!isPlaying && !isWinningCell ? 'bg-slate-800/50 border-white/5 text-slate-600' : ''}
+                                ${isWinningCell && !result.isWon ? 'bg-rose-500 border-rose-400 text-white opacity-50 shadow-[0_0_20px_rgba(244,63,94,0.3)]' : ''}
+                                ${!isSpinningHere && !isWinningCell ? 'bg-slate-900/60 border-white/10 text-slate-500 shadow-inner' : ''}
                             `}
                           >
                              {isWinningCell ? (
                                result.isWon ? <Sparkles className="w-8 h-8 text-white" /> : <X className="w-8 h-8" />
                              ) : (
-                                cellType !== 'empty' ? <span className="text-xs font-bold uppercase tracking-widest text-amber-500/50">{cellType}</span> : '•'
+                                cellType !== 'empty' ? <span className={`text-xs font-bold uppercase tracking-widest ${isSpinningHere ? 'text-white' : 'text-amber-500/50'}`}>{cellType}</span> : '•'
                              )}
                           </div>
                         );

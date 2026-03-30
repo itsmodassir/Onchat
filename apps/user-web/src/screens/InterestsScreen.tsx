@@ -50,7 +50,7 @@ export const InterestsScreen = () => {
 
     setLoading(true);
     try {
-      const { data } = await api.put('/social/interests', selected);
+      const { data } = await api.patch('/social/interests', { interests: selected });
       setUser(data);
       alert('Preference matrices updated successfully.');
       navigate(-1);
