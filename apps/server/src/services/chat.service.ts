@@ -151,6 +151,32 @@ export const chatService = {
       }
     });
 
+    socket.on('toggle-mute', (data: { roomId: string; isMuted: boolean }) => {
+      io.to(data.roomId).emit('user-mute-updated', { userId, isMuted: data.isMuted });
+      logger.info(`User ${userId} mute state in room ${data.roomId}: ${data.isMuted}`);
+    });
+
+    socket.on('lock-seat', (data: { roomId: string; seatIndex: number }) => {
+      io.to(data.roomId).emit('seat-locked', { seatIndex: data.seatIndex });
+    });
+
+    socket.on('unlock-seat', (data: { roomId: string; seatIndex: number }) => {
+      io.to(data.roomId).emit('seat-unlocked', { seatIndex: data.seatIndex });
+    });
+
+    socket.on('send-gift', async (data: { roomId: string; toUserId: string; giftId: string; points: number }) => {
+      try {
+        io.to(data.roomId).emit('new-gift-alert', {
+          fromUserId: userId,
+          toUserId: data.toUserId,
+          giftId: data.giftId,
+          points: data.points
+        });
+      } catch (error) {
+        logger.error(`Gift error: ${error}`);
+      }
+    });
+
     socket.on('disconnect', () => {
       for (const [userId, socketId] of userSockets.entries()) {
         if (socketId === socket.id) {

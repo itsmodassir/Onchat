@@ -9,10 +9,13 @@ import {
   Settings, Package, Gamepad2, 
   Smile, Volume2, ChevronLeft, Shield,
   TrendingUp, MessageSquare, UserPlus,
-  Check
+  Check, Lock
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { InviteFriendModal } from '../components/InviteFriendModal';
+import { GiftModal } from '../components/GiftModal';
+import { GriddyGameOverlay } from '../components/GriddyGameOverlay';
+
 
 const AppLink = (Link as any);
 
@@ -32,6 +35,12 @@ export const RoomScreen = () => {
   const [loading, setLoading] = useState(true);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
+  const [mutedUserIds, setMutedUserIds] = useState<Set<string>>(new Set());
+  const [lockedSeatIndexes, setLockedSeatIndexes] = useState<Set<number>>(new Set());
+  const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
+  const [isGameModalOpen, setIsGameModalOpen] = useState(false);
+  const [selectedRecipientId, setSelectedRecipientId] = useState<string | null>(null);
+  const [giftAlert, setGiftAlert] = useState<any>(null);
 
   const socketRef = useRef<Socket | null>(null);
   const agoraClient = useRef<IAgoraRTCClient | null>(null);
@@ -132,11 +141,58 @@ export const RoomScreen = () => {
     };
   }, [roomId, token, user?.id, fetchRoomDetails, fetchFollowing]);
 
+  useEffect(() => {
+    if (!socketRef.current) return;
+
+    socketRef.current.on('user-mute-updated', (data: { userId: string; isMuted: boolean }) => {
+      setMutedUserIds(prev => {
+        const next = new Set(prev);
+        if (data.isMuted) next.add(data.userId);
+        else next.delete(data.userId);
+        return next;
+      });
+    });
+
+    socketRef.current.on('seat-locked', (data: { seatIndex: number }) => {
+      setLockedSeatIndexes(prev => new Set(prev).add(data.seatIndex));
+    });
+
+    socketRef.current.on('seat-unlocked', (data: { seatIndex: number }) => {
+      setLockedSeatIndexes(prev => {
+        const next = new Set(prev);
+        next.delete(data.seatIndex);
+        return next;
+      });
+    });
+
+    socketRef.current.on('new-gift-alert', (data: any) => {
+      setGiftAlert(data);
+      setTimeout(() => setGiftAlert(null), 3000);
+    });
+
+    return () => {
+      socketRef.current?.off('user-mute-updated');
+      socketRef.current?.off('seat-locked');
+      socketRef.current?.off('seat-unlocked');
+      socketRef.current?.off('new-gift-alert');
+    };
+  }, [socketRef.current]);
+
   const handleSendMessage = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!inputText.trim() || !socketRef.current) return;
     socketRef.current.emit('send-message', { roomId, content: inputText });
     setInputText('');
+  };
+
+  const handleSendGift = (giftId: string, points: number) => {
+    if (!socketRef.current || !selectedRecipientId) return;
+    socketRef.current.emit('send-gift', { 
+        roomId, 
+        toUserId: selectedRecipientId, 
+        giftId, 
+        points 
+    });
   };
 
   const handleFollow = async (targetUserId: string) => {
@@ -153,6 +209,7 @@ export const RoomScreen = () => {
     const nextMute = !isMuted;
     setIsMuted(nextMute);
     localTrack.current.setEnabled(!nextMute);
+    socketRef.current?.emit('toggle-mute', { roomId, isMuted: nextMute });
   };
 
   if (loading || !room) {
@@ -227,8 +284,16 @@ export const RoomScreen = () => {
                       transition={{ duration: 2, repeat: Infinity }}
                       className="absolute inset-0 bg-indigo-500/20 blur-2xl rounded-full" 
                     />
-                    <div className="w-24 h-24 rounded-[2.5rem] border-4 border-indigo-500 overflow-hidden relative z-10 bg-slate-900 shadow-2xl transition-transform group-hover:scale-105">
+                    <div 
+                      onClick={() => { setSelectedRecipientId(room.hostId); setIsGiftModalOpen(true); }}
+                      className="w-24 h-24 rounded-[2.5rem] border-4 border-indigo-500 overflow-hidden relative z-10 bg-slate-900 shadow-2xl transition-transform group-hover:scale-105 cursor-pointer"
+                    >
                        <img src={room.host?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${room.hostId}`} className="w-full h-full object-cover" />
+                       {mutedUserIds.has(room.hostId) && (
+                         <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-[2px]">
+                            <MicOff className="w-8 h-8 text-rose-500" />
+                         </div>
+                       )}
                     </div>
                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-indigo-500 text-white text-[8px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-lg z-20">HOST</div>
                  </div>
@@ -239,16 +304,33 @@ export const RoomScreen = () => {
               {Array.from({ length: 7 }).map((_, i) => {
                  const p = participants[i + 1];
                  const isFollowing = p ? followingIds.has(p.userId) : false;
+                 const isLocked = lockedSeatIndexes.has(i);
                  
                  return (
                     <div key={i} className="flex flex-col items-center gap-4 group relative">
-                       <div className="w-20 h-20 rounded-[2rem] border-2 border-white/5 bg-white/2 hover:border-indigo-500/30 transition-all flex items-center justify-center overflow-hidden relative">
+                       <div 
+                         onClick={() => {
+                           if (p) {
+                             setSelectedRecipientId(p.userId);
+                             setIsGiftModalOpen(true);
+                           } else if (user?.id === room.hostId) {
+                             const event = isLocked ? 'unlock-seat' : 'lock-seat';
+                             socketRef.current?.emit(event, { roomId, seatIndex: i });
+                           }
+                         }}
+                         className={`w-20 h-20 rounded-[2rem] border-2 border-white/5 bg-white/2 hover:border-indigo-500/30 transition-all flex items-center justify-center overflow-hidden relative ${(!p && user?.id === room.hostId) || p ? 'cursor-pointer' : ''}`}
+                       >
                           {p ? (
                              <>
                                <img src={p.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.userId}`} className="w-full h-full object-cover" />
+                               {mutedUserIds.has(p.userId) && (
+                                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center backdrop-blur-[2px]">
+                                    <MicOff className="w-6 h-6 text-rose-500" />
+                                 </div>
+                               )}
                                {p.userId !== user?.id && !isFollowing && (
                                  <button 
-                                   onClick={() => handleFollow(p.userId)}
+                                   onClick={(e) => { e.stopPropagation(); handleFollow(p.userId); }}
                                    className="absolute inset-0 bg-indigo-600/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
                                  >
                                     <UserPlus className="w-6 h-6" />
@@ -261,7 +343,11 @@ export const RoomScreen = () => {
                                )}
                              </>
                           ) : (
-                             <Package className="w-6 h-6 text-slate-800 group-hover:text-indigo-500/20 transition-colors" />
+                             isLocked ? (
+                               <Lock className="w-6 h-6 text-rose-500/50 group-hover:text-rose-500 transition-colors" />
+                             ) : (
+                               <Package className="w-6 h-6 text-slate-800 group-hover:text-indigo-500/20 transition-colors" />
+                             )
                           )}
                        </div>
                        <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
@@ -363,17 +449,63 @@ export const RoomScreen = () => {
          </div>
 
          <div className="flex items-center gap-3">
-            <button className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 hover:bg-amber-500 hover:text-white transition-all shadow-lg active:scale-95"><Gamepad2 className="w-6 h-6" /></button>
-            <AppLink to="/store" className="px-8 h-14 rounded-2xl premium-gradient text-white font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-3">
+            <button 
+              onClick={() => setIsGameModalOpen(true)}
+              className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 hover:bg-amber-500 hover:text-white transition-all shadow-lg active:scale-95"
+            >
+              <Gamepad2 className="w-6 h-6" />
+            </button>
+            <button 
+              onClick={() => { setSelectedRecipientId(room.hostId); setIsGiftModalOpen(true); }}
+              className="px-8 h-14 rounded-2xl premium-gradient text-white font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-3"
+            >
                <Gift className="w-5 h-5" />
                Gift Shop
-            </AppLink>
+            </button>
          </div>
       </footer>
 
       <InviteFriendModal 
         isOpen={isInviteModalOpen} 
         onClose={() => setIsInviteModalOpen(false)} 
+        roomId={roomId!}
+      />
+
+      <GiftModal 
+        isOpen={isGiftModalOpen}
+        onClose={() => setIsGiftModalOpen(false)}
+        onSend={handleSendGift}
+        recipientName={
+          selectedRecipientId === room.hostId 
+            ? room.host?.name 
+            : participants.find(p => p.userId === selectedRecipientId)?.user?.name || 'User'
+        }
+      />
+
+      <AnimatePresence>
+        {giftAlert && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.5, y: 50 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.5, y: -50 }}
+            className="absolute top-24 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
+          >
+            <div className="bg-indigo-600/90 backdrop-blur-xl border border-indigo-400 p-4 rounded-3xl shadow-2xl flex items-center gap-4">
+              <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-2xl">
+                🎁
+              </div>
+              <div>
+                <p className="text-white font-black text-sm uppercase tracking-widest">Gift Stream</p>
+                <p className="text-indigo-200 text-[10px] uppercase font-bold tracking-widest mt-1">Sent a gift worth {giftAlert.points} LP!</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <GriddyGameOverlay 
+        isOpen={isGameModalOpen}
+        onClose={() => setIsGameModalOpen(false)}
         roomId={roomId!}
       />
     </div>

@@ -25,7 +25,7 @@ export const voiceService = {
       uid,
       role,
       privilegeExpiredTs,
-      privilegeExpiredTs // Some versions expect this twice (token expiry + privilege expiry)
+      privilegeExpiredTs // tokenExpiredTs
     );
 
     return token;
