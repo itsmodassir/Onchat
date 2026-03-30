@@ -10,10 +10,28 @@ import {
   Settings, Share2, Package, Gamepad2, 
   MessageSquare, Smile, Volume2 
 } from 'lucide-react-native';
+
+const Icons = {
+  Send: Send as any,
+  Mic: Mic as any,
+  MicOff: MicOff as any,
+  LogOut: LogOut as any,
+  Gift: Gift as any,
+  Users: Users as any,
+  Settings: Settings as any,
+  Share2: Share2 as any,
+  Package: Package as any,
+  Gamepad2: Gamepad2 as any,
+  MessageSquare: MessageSquare as any,
+  Smile: Smile as any,
+  Volume2: Volume2 as any
+};
 import {
   createAgoraRtcEngine,
   ChannelProfileType,
   ClientRoleType,
+  AudioProfileType,
+  AudioScenarioType,
   IRtcEngine,
 } from 'react-native-agora';
 import LuckyGameOverlay from '../components/LuckyGameOverlay';
@@ -43,6 +61,12 @@ const RoomScreen = ({ route, navigation }: any) => {
       agoraEngine.current.initialize({ appId: AGORA_APP_ID });
       agoraEngine.current.setChannelProfile(ChannelProfileType.ChannelProfileLiveBroadcasting);
       
+      // Standardize audio profile for web-mobile parity
+      agoraEngine.current.setAudioProfile(
+        AudioProfileType.AudioProfileMusicStandard, 
+        AudioScenarioType.AudioScenarioMeeting
+      );
+
       const role = room?.hostId === user.id ? ClientRoleType.ClientRoleBroadcaster : ClientRoleType.ClientRoleAudience;
       agoraEngine.current.setClientRole(role);
 
@@ -163,8 +187,8 @@ const RoomScreen = ({ route, navigation }: any) => {
               style={styles.seatAvatar} 
             />
           ) : (
-            <View style={styles.emptySeat}>
-              <Package size={20} color="#6366f1" opacity={0.5} />
+            <View style={[styles.emptySeat, { opacity: 0.5 }]}>
+              <Icons.Package size={20} color="#6366f1" />
             </View>
           )}
           {participant?.role === 'HOST' && <View style={styles.hostBadge}><Text style={styles.hostBadgeText}>HOST</Text></View>}
@@ -196,9 +220,9 @@ const RoomScreen = ({ route, navigation }: any) => {
              </View>
           </View>
           <View style={styles.headerRight}>
-             <TouchableOpacity style={styles.headerIcon}><Package size={20} color="#FFF" /></TouchableOpacity>
-             <TouchableOpacity style={styles.headerIcon}><Share2 size={20} color="#FFF" /></TouchableOpacity>
-             <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.goBack()}><LogOut size={20} color="#FFF" /></TouchableOpacity>
+             <TouchableOpacity style={styles.headerIcon}><Icons.Package size={20} color="#FFF" /></TouchableOpacity>
+             <TouchableOpacity style={styles.headerIcon}><Icons.Share2 size={20} color="#FFF" /></TouchableOpacity>
+             <TouchableOpacity style={styles.headerIcon} onPress={() => navigation.goBack()}><Icons.LogOut size={20} color="#FFF" /></TouchableOpacity>
           </View>
         </View>
 
@@ -267,11 +291,11 @@ const RoomScreen = ({ route, navigation }: any) => {
         {/* Bottom Actions */}
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
            <View style={styles.bottomActions}>
-              <TouchableOpacity style={styles.actionIcon}><Volume2 size={24} color="#FFF" /></TouchableOpacity>
+              <TouchableOpacity style={styles.actionIcon}><Icons.Volume2 size={24} color="#FFF" /></TouchableOpacity>
               <TouchableOpacity style={styles.actionIcon} onPress={toggleMute}>
-                 {isMuted ? <MicOff size={24} color="#EF4444" /> : <Mic size={24} color="#FFF" />}
+                 {isMuted ? <Icons.MicOff size={24} color="#EF4444" /> : <Icons.Mic size={24} color="#FFF" />}
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionIcon}><Smile size={24} color="#FFF" /></TouchableOpacity>
+              <TouchableOpacity style={styles.actionIcon}><Icons.Smile size={24} color="#FFF" /></TouchableOpacity>
               
               <View style={styles.inputContainer}>
                  <TextInput 
@@ -285,11 +309,11 @@ const RoomScreen = ({ route, navigation }: any) => {
               </View>
 
               <TouchableOpacity style={styles.actionIcon} onPress={() => setShowGame(true)}>
-                 <Gamepad2 size={24} color="#F59E0B" />
+                 <Icons.Gamepad2 size={24} color="#F59E0B" />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.actionIcon}><Package size={24} color="#FFF" /></TouchableOpacity>
+              <TouchableOpacity style={styles.actionIcon}><Icons.Package size={24} color="#FFF" /></TouchableOpacity>
               <TouchableOpacity style={styles.giftBtn}>
-                 <Gift size={24} color="#FFF" />
+                 <Icons.Gift size={24} color="#FFF" />
               </TouchableOpacity>
            </View>
         </KeyboardAvoidingView>

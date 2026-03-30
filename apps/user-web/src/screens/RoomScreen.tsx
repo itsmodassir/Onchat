@@ -6,11 +6,13 @@ import { useStore } from '../store';
 import api from '../utils/api';
 import { 
   Send, Mic, MicOff, LogOut, Gift, 
-  Settings, Share2, Package, Gamepad2, 
+  Settings, Package, Gamepad2, 
   Smile, Volume2, ChevronLeft, Shield,
-  TrendingUp, MessageSquare
+  TrendingUp, MessageSquare, UserPlus,
+  Check
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { InviteFriendModal } from '../components/InviteFriendModal';
 
 const AppLink = (Link as any);
 
@@ -28,15 +30,29 @@ export const RoomScreen = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [participants, setParticipants] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
 
   const socketRef = useRef<Socket | null>(null);
   const agoraClient = useRef<IAgoraRTCClient | null>(null);
   const localTrack = useRef<IMicrophoneAudioTrack | null>(null);
 
+  const fetchFollowing = useCallback(async () => {
+    try {
+      const { data } = await api.get(`/social/following/${user?.id}`);
+      setFollowingIds(new Set(data.map((f: any) => f.followingId)));
+    } catch (e) {
+      console.error('Fetch following failed', e);
+    }
+  }, [user?.id]);
+
   const setupAgora = useCallback(async (rtcToken: string) => {
     try {
-      agoraClient.current = AgoraRTC.createClient({ mode: 'rtc', codec: 'vp8' });
+      agoraClient.current = AgoraRTC.createClient({ mode: 'live', codec: 'vp8' });
       
+      const role = room?.hostId === user?.id ? 'host' : 'audience';
+      await agoraClient.current.setClientRole(role);
+
       await agoraClient.current.join(
         AGORA_APP_ID, 
         roomId!, 
@@ -44,8 +60,10 @@ export const RoomScreen = () => {
         Number(user?.shortId?.slice(0, 8)) || null
       );
 
-      if (room?.hostId === user?.id) {
-        localTrack.current = await AgoraRTC.createMicrophoneAudioTrack();
+      if (role === 'host') {
+        localTrack.current = await AgoraRTC.createMicrophoneAudioTrack({
+          encoderConfig: 'music_standard'
+        });
         await agoraClient.current.publish(localTrack.current);
       }
 
@@ -83,6 +101,7 @@ export const RoomScreen = () => {
 
   useEffect(() => {
     fetchRoomDetails();
+    fetchFollowing();
 
     socketRef.current = io(SOCKET_URL, { 
       auth: { token },
@@ -111,13 +130,22 @@ export const RoomScreen = () => {
       localTrack.current?.close();
       agoraClient.current?.leave();
     };
-  }, [roomId, token, user?.id, fetchRoomDetails]);
+  }, [roomId, token, user?.id, fetchRoomDetails, fetchFollowing]);
 
   const handleSendMessage = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!inputText.trim() || !socketRef.current) return;
     socketRef.current.emit('send-message', { roomId, content: inputText });
     setInputText('');
+  };
+
+  const handleFollow = async (targetUserId: string) => {
+    try {
+      await api.post('/social/follow', { userId: targetUserId });
+      setFollowingIds(prev => new Set([...prev, targetUserId]));
+    } catch (e) {
+      console.error('Follow failed', e);
+    }
   };
 
   const toggleMute = () => {
@@ -169,7 +197,13 @@ export const RoomScreen = () => {
         </div>
 
         <div className="flex items-center gap-4">
-          <button className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-all"><Share2 className="w-5 h-5" /></button>
+          <button 
+            onClick={() => setIsInviteModalOpen(true)}
+            className="px-6 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/10 text-indigo-400 font-black text-[10px] uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all flex items-center gap-3 shadow-xl shadow-indigo-600/5 active:scale-95"
+          >
+             <UserPlus className="w-4 h-4" />
+             Transmitting Invite
+          </button>
           <button className="w-12 h-12 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-all"><Settings className="w-5 h-5" /></button>
           <button 
             onClick={() => navigate('/')}
@@ -204,11 +238,28 @@ export const RoomScreen = () => {
               {/* Guest Seats (Simulated empty or filled) */}
               {Array.from({ length: 7 }).map((_, i) => {
                  const p = participants[i + 1];
+                 const isFollowing = p ? followingIds.has(p.userId) : false;
+                 
                  return (
-                    <div key={i} className="flex flex-col items-center gap-4 group">
-                       <div className="w-20 h-20 rounded-[2rem] border-2 border-white/5 bg-white/2 hover:border-indigo-500/30 transition-all flex items-center justify-center overflow-hidden">
+                    <div key={i} className="flex flex-col items-center gap-4 group relative">
+                       <div className="w-20 h-20 rounded-[2rem] border-2 border-white/5 bg-white/2 hover:border-indigo-500/30 transition-all flex items-center justify-center overflow-hidden relative">
                           {p ? (
-                             <img src={p.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.userId}`} className="w-full h-full object-cover" />
+                             <>
+                               <img src={p.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${p.userId}`} className="w-full h-full object-cover" />
+                               {p.userId !== user?.id && !isFollowing && (
+                                 <button 
+                                   onClick={() => handleFollow(p.userId)}
+                                   className="absolute inset-0 bg-indigo-600/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
+                                 >
+                                    <UserPlus className="w-6 h-6" />
+                                 </button>
+                               )}
+                               {isFollowing && (
+                                 <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center">
+                                    <Check className="w-3 h-3 text-white" />
+                                 </div>
+                               )}
+                             </>
                           ) : (
                              <Package className="w-6 h-6 text-slate-800 group-hover:text-indigo-500/20 transition-colors" />
                           )}
@@ -297,7 +348,7 @@ export const RoomScreen = () => {
          <div className="flex items-center gap-4 bg-slate-950/50 p-2 rounded-2xl border border-white/5 hidden md:flex">
             <div className="px-4 py-2 flex items-center gap-2 border-r border-white/5">
                 <TrendingUp className="w-4 h-4 text-indigo-500" />
-                <span className="text-[10px] font-black text-slate-500 uppercase">Lv. 28 Auditor</span>
+                <span className="text-[10px] font-black text-slate-500 uppercase">Lv. {user?.level || 1} Auditor</span>
             </div>
             <div className="px-4 py-2 flex items-center gap-3">
                 <div className="flex -space-x-3">
@@ -313,12 +364,18 @@ export const RoomScreen = () => {
 
          <div className="flex items-center gap-3">
             <button className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 hover:bg-amber-500 hover:text-white transition-all shadow-lg active:scale-95"><Gamepad2 className="w-6 h-6" /></button>
-            <button className="px-8 h-14 rounded-2xl premium-gradient text-white font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-3">
+            <AppLink to="/store" className="px-8 h-14 rounded-2xl premium-gradient text-white font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-indigo-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-3">
                <Gift className="w-5 h-5" />
                Gift Shop
-            </button>
+            </AppLink>
          </div>
       </footer>
+
+      <InviteFriendModal 
+        isOpen={isInviteModalOpen} 
+        onClose={() => setIsInviteModalOpen(false)} 
+        roomId={roomId!}
+      />
     </div>
   );
 };

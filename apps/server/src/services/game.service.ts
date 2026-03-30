@@ -52,5 +52,23 @@ export const gameService = {
       isWon,
       newBalance: user.coins - betAmount + wonAmount
     };
+  },
+
+  async getRecentWins() {
+    return await prisma.griddyBet.findMany({
+      where: { won: true, multiplier: { gt: 1 } },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+            shortId: true
+          }
+        }
+      }
+    });
   }
 };

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import api from '../utils/api';
 import { 
@@ -8,22 +8,42 @@ import {
   TrendingUp, 
   History, 
   AlertCircle,
-  Trophy
+  Trophy,
+  Loader2
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AppLink = (Link as any);
 
 export const GriddyGameScreen = () => {
-  const { user, updateUser } = useStore();
+  const navigate = useNavigate();
+  const { user, setUser } = useStore();
   const [betAmount, setBetAmount] = useState(100);
   const [isSpinning, setIsSpinning] = useState(false);
   const [resultCell, setResultCell] = useState<number | null>(null);
   const [multiplier, setMultiplier] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<any[]>([]);
+  const [fetchingHistory, setFetchingHistory] = useState(false);
 
   const grid = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+  const fetchHistory = useCallback(async () => {
+    setFetchingHistory(true);
+    try {
+      const { data } = await api.get('/luck/griddy/history');
+      setHistory(data);
+    } catch (err) {
+      console.error('Fetch history failed', err);
+    } finally {
+      setFetchingHistory(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
 
   const handlePlay = async () => {
     if (!user || user.coins < betAmount) {
@@ -44,7 +64,8 @@ export const GriddyGameScreen = () => {
         setIsSpinning(false);
         setResultCell(data.result);
         setMultiplier(data.multiplier);
-        updateUser({ coins: data.newBalance });
+        setUser({ ...user, coins: data.newBalance });
+        fetchHistory(); // Refresh winners list
       }, 1500);
     } catch (err: any) {
       setIsSpinning(false);
@@ -79,7 +100,10 @@ export const GriddyGameScreen = () => {
               {user?.coins?.toLocaleString() || 0}
             </span>
           </div>
-          <button className="premium-gradient text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-2xl shadow-lg shadow-indigo-600/20 hover:scale-105 active:scale-95 transition-transform">
+          <button 
+            onClick={() => navigate('/wallet')}
+            className="premium-gradient text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-2xl shadow-lg shadow-indigo-600/20 hover:scale-105 active:scale-95 transition-transform"
+          >
             Get Coins
           </button>
         </div>
@@ -207,30 +231,32 @@ export const GriddyGameScreen = () => {
             </div>
           </div>
 
-          {/* Mini Leaderboard Placeholder */}
+          {/* Mini Leaderboard */}
           <div className="glass-card p-8 rounded-[2rem] border-white/5">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-sm font-black uppercase tracking-widest flex items-center gap-2">
                 <Trophy className="w-4 h-4 text-amber-500" />
                 Live Winners
               </h3>
-              <History className="w-4 h-4 text-slate-700" />
+              {fetchingHistory ? <Loader2 className="w-4 h-4 text-indigo-500 animate-spin" /> : <History className="w-4 h-4 text-slate-700" />}
             </div>
             <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center justify-between group">
+              {history.length > 0 ? history.map((win) => (
+                <div key={win.id} className="flex items-center justify-between group">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-[10px] font-black text-slate-500 border border-white/5">
-                      {i}
+                    <div className="w-8 h-8 rounded-lg bg-slate-900 border border-white/5 overflow-hidden">
+                      <img src={win.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${win.userId}`} className="w-full h-full object-cover" />
                     </div>
                     <div>
-                      <p className="text-xs font-black text-slate-400 group-hover:text-white transition-colors">Player_{Math.floor(Math.random() * 9000) + 1000}</p>
-                      <p className="text-[9px] font-black text-emerald-500 uppercase">Won x5.0</p>
+                      <p className="text-xs font-black text-slate-400 group-hover:text-white transition-colors">{win.user?.name}</p>
+                      <p className="text-[9px] font-black text-emerald-500 uppercase">Won x{win.multiplier}</p>
                     </div>
                   </div>
-                  <span className="text-xs font-black tabular-nums text-slate-700">+500</span>
+                  <span className="text-xs font-black tabular-nums text-slate-700">+{Math.floor(win.amount * win.multiplier)}</span>
                 </div>
-              ))}
+              )) : (
+                <p className="text-[10px] font-black text-slate-600 uppercase text-center py-4">No recent signals</p>
+              )}
             </div>
           </div>
         </div>

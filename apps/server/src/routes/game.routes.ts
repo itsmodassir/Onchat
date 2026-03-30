@@ -15,4 +15,13 @@ router.post('/griddy/play', async (req: any, res) => {
   }
 });
 
+router.get('/griddy/history', async (req, res) => {
+  try {
+    const history = await gameService.getRecentWins();
+    res.json(history);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 export default router;
