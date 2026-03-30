@@ -28,17 +28,18 @@ export const SignupScreen = () => {
 
   const handleSendOTP = async () => {
     if (!email) {
-      setError('Identity UID (Email) is required for handshake.');
+      setError('Email Address is required to verify your identity.');
       return;
     }
     setLoading(true);
     setError('');
     try {
-      await api.post('/auth/send-otp', { email, type: 'SIGNUP' });
+      // FIX: Changed 'type' to 'purpose' to match backend requirements
+      await api.post('/auth/send-otp', { email, purpose: 'SIGNUP' });
       setCountdown(60);
-      setSuccess('Verification protocol initiated. Check your inbox.');
+      setSuccess('Verification code sent! Please check your inbox.');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Handshake failed. Protocol rejected.');
+      setError(err.response?.data?.error || 'Failed to send verification code. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -47,17 +48,17 @@ export const SignupScreen = () => {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !password || !otp) {
-      setError('All identity fields are explicitly required.');
+      setError('All fields are required to complete your registration.');
       return;
     }
     setLoading(true);
     setError('');
     try {
       await api.post('/auth/signup', { name, email, password, otp });
-      setSuccess('Identity established. Proceeding to access origin.');
+      setSuccess('Account created successfully! Redirecting to login...');
       setTimeout(() => navigate('/login'), 2000);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Authentication Failed. Origin rejection.');
+      setError(err.response?.data?.error || 'Registration failed. Please check your details.');
     } finally {
       setLoading(false);
     }
@@ -78,8 +79,8 @@ export const SignupScreen = () => {
           >
             <Target className="text-white w-10 h-10" />
           </motion.div>
-          <h1 className="text-4xl font-black tracking-tighter mb-2 text-white">Establish Origin</h1>
-          <p className="text-slate-500 font-bold uppercase tracking-[0.3em] text-[10px]">Secure Identity Protocol</p>
+          <h1 className="text-4xl font-black tracking-tighter mb-2 text-white">Create Account</h1>
+          <p className="text-slate-500 font-bold uppercase tracking-[0.3em] text-[10px]">Join Onchat Social Audio</p>
         </div>
 
         {/* Form Card */}
@@ -111,7 +112,7 @@ export const SignupScreen = () => {
             <div className="space-y-6">
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] ml-2">Alias</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] ml-2">Full Name</label>
                     <div className="relative group">
                       <User className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-indigo-500 transition-colors w-4 h-4" />
                       <input 
@@ -119,13 +120,13 @@ export const SignupScreen = () => {
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         className="w-full bg-slate-950/50 border border-white/5 rounded-2xl py-4 pl-14 pr-6 text-sm text-white focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all placeholder:text-slate-800 font-bold"
-                        placeholder="Public Identifier"
+                        placeholder="John Doe"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] ml-2">Secure Key</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] ml-2">Password</label>
                     <div className="relative group">
                       <Lock className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-indigo-500 transition-colors w-4 h-4" />
                       <input 
@@ -140,7 +141,7 @@ export const SignupScreen = () => {
                </div>
 
                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] ml-2">Identity Email</label>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] ml-2">Email Address</label>
                   <div className="relative group">
                     <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-indigo-500 transition-colors w-4 h-4" />
                     <input 
@@ -154,7 +155,7 @@ export const SignupScreen = () => {
                </div>
 
                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] ml-2">Verification Key</label>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] ml-2">Verification Code</label>
                   <div className="flex gap-4">
                     <div className="relative group flex-1">
                       <Key className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-indigo-500 transition-colors w-4 h-4" />
@@ -183,7 +184,7 @@ export const SignupScreen = () => {
                 disabled={loading}
                 className="w-full premium-gradient text-white font-black py-5 rounded-3xl transition-all shadow-xl shadow-indigo-600/20 active:scale-[0.98] flex items-center justify-center gap-3 uppercase tracking-widest text-[11px]"
               >
-                {loading ? 'Establishing Identity...' : 'Finalize Handshake'}
+                {loading ? 'Creating Account...' : 'Create Account'}
                 {!loading && <ArrowRight className="w-4 h-4" />}
               </button>
             </div>
@@ -191,12 +192,12 @@ export const SignupScreen = () => {
         </div>
         
         <div className="mt-12 text-center">
-            <p className="text-slate-600 text-[11px] font-bold mb-4 uppercase tracking-widest">Already authorized within the net?</p>
+            <p className="text-slate-600 text-[11px] font-bold mb-4 uppercase tracking-widest">Already have an account?</p>
             <AppLink 
               to="/login"
               className="inline-flex items-center gap-2 text-indigo-400 font-black uppercase tracking-widest text-[11px] hover:text-white transition-colors"
             >
-              Access Origin Controller
+              Sign In to your Dashboard
               <ArrowRight className="w-3 h-3" />
             </AppLink>
         </div>

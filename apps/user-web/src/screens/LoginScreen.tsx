@@ -22,14 +22,14 @@ export const LoginScreen = () => {
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return setError('Email is required for handshake');
+    if (!email) return setError('Email Address is required');
     setLoading(true);
     setError('');
     try {
       await api.post('/auth/send-otp', { email, purpose: 'LOGIN' });
       setStep(2);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to initialize handshake');
+      setError(err.response?.data?.error || 'Failed to send OTP code');
     } finally {
       setLoading(false);
     }
@@ -51,7 +51,7 @@ export const LoginScreen = () => {
       setAuth(res.data.user, res.data.token);
       navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Security verification failed');
+      setError(err.response?.data?.error || 'Login verification failed');
     } finally {
       setLoading(false);
     }
@@ -63,7 +63,7 @@ export const LoginScreen = () => {
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/5 blur-[100px] rounded-full" />
 
-      <div className="w-full max-w-md relative z-10 animate-in fade-in zoom-in-95 duration-500">
+      <div className="w-full max-md relative z-10 animate-in fade-in zoom-in-95 duration-500 max-w-md">
         {/* Brand */}
         <div className="text-center mb-12">
           <motion.div 
@@ -72,8 +72,8 @@ export const LoginScreen = () => {
           >
             <ShieldCheck className="text-white w-12 h-12" />
           </motion.div>
-          <h1 className="text-4xl font-black tracking-tighter mb-2 text-white">Origin Access</h1>
-          <p className="text-slate-500 font-bold uppercase tracking-[0.3em] text-[10px]">Unified Gateway Core</p>
+          <h1 className="text-4xl font-black tracking-tighter mb-2 text-white">Sign In</h1>
+          <p className="text-slate-500 font-bold uppercase tracking-[0.3em] text-[10px]">Access your Onchat Account</p>
         </div>
 
         {/* Form Card */}
@@ -98,7 +98,7 @@ export const LoginScreen = () => {
                {/* Email Field - Always visible if step 1 or password mode */}
                {(step === 1 || loginMode === 'password') && (
                  <div className="space-y-3">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] ml-2">Identity Email</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] ml-2">Email Address</label>
                     <div className="relative group">
                       <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-indigo-500 transition-colors w-5 h-5" />
                       <input 
@@ -115,14 +115,14 @@ export const LoginScreen = () => {
 
                <AnimatePresence mode="wait">
                 {loginMode === 'password' ? (
-                  <motion.div 
+                   <motion.div 
                     key="password-field"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
                     className="space-y-3"
                   >
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] ml-2">Security Key</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] ml-2">Password</label>
                     <div className="relative group">
                       <Lock className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-indigo-500 transition-colors w-5 h-5" />
                       <input 
@@ -150,7 +150,7 @@ export const LoginScreen = () => {
                     exit={{ opacity: 0, x: -20 }}
                     className="space-y-3"
                   >
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] ml-2">Verification Key</label>
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] ml-2">Verification Code</label>
                     <div className="relative group">
                       <CheckCircle2 className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-indigo-500 transition-colors w-5 h-5" />
                       <input 
@@ -182,7 +182,7 @@ export const LoginScreen = () => {
                     className="w-full text-[10px] font-black text-indigo-400 uppercase tracking-widest hover:text-white transition-colors flex items-center justify-center gap-2"
                   >
                     {loginMode === 'password' ? <Key className="w-3 h-3" /> : <Lock className="w-3 h-3" />}
-                    Use {loginMode === 'password' ? 'One-Time Passcode' : 'Static Security Key'} instead
+                    Use {loginMode === 'password' ? 'OTP verification' : 'Password'} instead
                   </button>
                )}
 
@@ -191,7 +191,7 @@ export const LoginScreen = () => {
                 disabled={loading}
                 className="w-full premium-gradient text-white font-black py-5 rounded-3xl transition-all shadow-xl shadow-indigo-600/20 active:scale-[0.98] flex items-center justify-center gap-3 uppercase tracking-widest text-xs"
               >
-                {loading ? 'Processing Protocol...' : (loginMode === 'otp' && step === 1 ? 'Send Handshake OTP' : 'Finalize Session')}
+                {loading ? 'Authenticating...' : (loginMode === 'otp' && step === 1 ? 'Send Login OTP' : 'Sign In')}
                 {!loading && <ArrowRight className="w-4 h-4" />}
               </button>
             </div>
@@ -203,9 +203,9 @@ export const LoginScreen = () => {
               Standard Access Protocol. Authorized Entry only.
             </p>
             <div className="flex items-center justify-center gap-4">
-               <AppLink to="/signup" className="text-[10px] font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest underline decoration-white/10 underline-offset-8">Request Access</AppLink>
+               <AppLink to="/signup" className="text-[10px] font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest underline decoration-white/10 underline-offset-8">Create Account</AppLink>
                <div className="w-1 h-1 rounded-full bg-slate-800" />
-               <AppLink to="/forgot-password" className="text-[10px] font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest underline decoration-white/10 underline-offset-8">Key Recovery</AppLink>
+               <AppLink to="/forgot-password" className="text-[10px] font-black text-slate-500 hover:text-white transition-colors uppercase tracking-widest underline decoration-white/10 underline-offset-8">Forgot Password?</AppLink>
             </div>
         </div>
       </div>

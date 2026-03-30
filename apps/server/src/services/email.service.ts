@@ -28,6 +28,9 @@ export const emailService = {
   },
 
   async sendOtpEmail(to: string, code: string, purpose: string) {
+    // Explicitly log the OTP to the terminal for debugging if email delivery fails
+    console.log(`\n\x1b[33m[AUTH_PROTOCOL] \x1b[0mOTP code for \x1b[36m${to}\x1b[0m (\x1b[35m${purpose}\x1b[0m): \x1b[32m${code}\x1b[0m\n`);
+    
     let subject = 'Your Onchat OTP Code';
     let message = `Your OTP code is <b>${code}</b>. It is valid for 10 minutes.`;
 

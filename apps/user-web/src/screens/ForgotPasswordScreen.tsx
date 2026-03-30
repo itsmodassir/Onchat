@@ -27,17 +27,18 @@ export const ForgotPasswordScreen = () => {
 
   const handleSendOTP = async () => {
     if (!email) {
-      setError('Identity UID (Email) is required for recovery.');
+      setError('Email Address is required to reset your password.');
       return;
     }
     setLoading(true);
     setError('');
     try {
-      await api.post('/auth/send-otp', { email, type: 'FORGOT_PASSWORD' });
+      // FIX: Changed 'type' to 'purpose' to match backend requirements
+      await api.post('/auth/send-otp', { email, purpose: 'RESET_PASSWORD' });
       setCountdown(60);
-      setSuccess('Recovery protocol initiated. Check your inbox.');
+      setSuccess('Verification code sent! Please check your inbox.');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Recovery handshake failed.');
+      setError(err.response?.data?.error || 'Failed to send verification code.');
     } finally {
       setLoading(false);
     }
@@ -46,17 +47,17 @@ export const ForgotPasswordScreen = () => {
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password || !otp) {
-      setError('All recovery fields are explicitly required.');
+      setError('All fields are required to reset your password.');
       return;
     }
     setLoading(true);
     setError('');
     try {
-      await api.post('/auth/reset-password', { email, password, otp });
-      setSuccess('Security key updated. Proceeding to access origin.');
+      await api.post('/auth/reset-password', { email, newPassword: password, otp });
+      setSuccess('Password updated successfully! Redirecting to login...');
       setTimeout(() => navigate('/login'), 2000);
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Security Update Failed. Protocol rejected.');
+      setError(err.response?.data?.error || 'Password reset failed. Please check your code.');
     } finally {
       setLoading(false);
     }
@@ -77,8 +78,8 @@ export const ForgotPasswordScreen = () => {
           >
             <RefreshCcw className="text-white w-10 h-10" />
           </motion.div>
-          <h1 className="text-4xl font-black tracking-tighter mb-2 text-white">Recovery Phase</h1>
-          <p className="text-slate-500 font-bold uppercase tracking-[0.3em] text-[10px]">Secure Key Overwrite</p>
+          <h1 className="text-4xl font-black tracking-tighter mb-2 text-white">Reset Password</h1>
+          <p className="text-slate-500 font-bold uppercase tracking-[0.3em] text-[10px]">Restore access to your account</p>
         </div>
 
         {/* Form Card */}
@@ -109,7 +110,7 @@ export const ForgotPasswordScreen = () => {
 
             <div className="space-y-6">
                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] ml-2">Identity UID</label>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] ml-2">Email Address</label>
                   <div className="relative group">
                     <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-indigo-500 transition-colors w-4 h-4" />
                     <input 
@@ -123,7 +124,7 @@ export const ForgotPasswordScreen = () => {
                </div>
 
                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] ml-2">New Security Key</label>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] ml-2">New Password</label>
                   <div className="relative group">
                     <Lock className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-indigo-500 transition-colors w-4 h-4" />
                     <input 
@@ -137,7 +138,7 @@ export const ForgotPasswordScreen = () => {
                </div>
 
                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] ml-2">Recovery Ticket (OTP)</label>
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.25em] ml-2">Verification Code</label>
                   <div className="flex gap-4">
                     <div className="relative group flex-1">
                       <Key className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-indigo-500 transition-colors w-4 h-4" />
@@ -156,7 +157,7 @@ export const ForgotPasswordScreen = () => {
                       disabled={loading || countdown > 0}
                       className="px-6 rounded-2xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500 hover:text-white transition-all disabled:opacity-50"
                     >
-                      {countdown > 0 ? `${countdown}s` : 'Call Ticket'}
+                      {countdown > 0 ? `${countdown}s` : 'Request Code'}
                     </button>
                   </div>
                </div>
@@ -166,7 +167,7 @@ export const ForgotPasswordScreen = () => {
                 disabled={loading}
                 className="w-full premium-gradient text-white font-black py-5 rounded-3xl transition-all shadow-xl shadow-indigo-600/20 active:scale-[0.98] flex items-center justify-center gap-3 uppercase tracking-widest text-[11px]"
               >
-                {loading ? 'Re-writing Protocols...' : 'Commit Security Update'}
+                {loading ? 'Updating Password...' : 'Reset Password'}
                 {!loading && <ArrowRight className="w-4 h-4" />}
               </button>
             </div>
@@ -174,12 +175,12 @@ export const ForgotPasswordScreen = () => {
         </div>
         
         <div className="mt-12 text-center">
-            <p className="text-slate-600 text-[11px] font-bold mb-4 uppercase tracking-widest">Protocol recognized?</p>
+            <p className="text-slate-600 text-[11px] font-bold mb-4 uppercase tracking-widest">Remember your password?</p>
             <AppLink 
               to="/login"
               className="inline-flex items-center gap-2 text-indigo-400 font-black uppercase tracking-widest text-[11px] hover:text-white transition-colors"
             >
-              Access Origin Controller
+              Sign In to your Dashboard
               <ArrowRight className="w-3 h-3" />
             </AppLink>
         </div>
