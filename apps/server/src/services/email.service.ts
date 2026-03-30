@@ -1,8 +1,6 @@
 import nodemailer from 'nodemailer';
 import { logger } from '../utils/logger';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../utils/db';
 
 export const emailService = {
   async getTransporter() {
