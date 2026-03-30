@@ -111,9 +111,9 @@ export class StorageService {
     if (!user) throw new Error('User not found');
     
     return {
-      used: user.storageUsed,
-      quota: user.storageQuota,
-      percentage: (user.storageUsed / user.storageQuota) * 100
+      used: (user as any).storageUsed || 0,
+      quota: (user as any).storageQuota || 10737418240, // Default 10GB
+      percentage: (((user as any).storageUsed || 0) / ((user as any).storageQuota || 10737418240)) * 100
     };
   }
 }
