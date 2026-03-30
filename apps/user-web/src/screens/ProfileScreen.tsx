@@ -14,7 +14,7 @@ import { motion } from 'framer-motion';
 const AppLink = Link as any;
 
 export const ProfileScreen = () => {
-  const { user, logout, setUser, updateUser } = useStore();
+  const { user, logout, setUser } = useStore();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({ name: '', bio: '' });
   const [isUploading, setIsUploading] = useState(false);
