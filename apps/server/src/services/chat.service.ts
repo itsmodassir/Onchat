@@ -92,13 +92,18 @@ export const chatService = {
       }
     });
 
-    socket.on('leave-room', (data: { roomId: string }) => {
+    socket.on('leave-room', async (data: { roomId: string }) => {
       const roomId = typeof data === 'string' ? data : data.roomId;
       if (!roomId) return;
 
-      socket.leave(roomId);
-      io.to(roomId).emit('user-left', { roomId, userId: userId });
-      logger.info(`User ${userId} left room ${roomId}`);
+      try {
+        await roomService.leaveRoom(roomId, userId);
+        socket.leave(roomId);
+        io.to(roomId).emit('user-left', { roomId, userId: userId });
+        logger.info(`User ${userId} left room ${roomId} (Purged from DB)`);
+      } catch (err) {
+        logger.error(`Error leaving room ${roomId}: ${err}`);
+      }
     });
 
     socket.on('send-message', async (data: { roomId: string; content: string }) => {
@@ -308,15 +313,25 @@ export const chatService = {
     });
 
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
       // Clear Heartbeat
       if (socket.heartbeatInterval) {
         clearInterval(socket.heartbeatInterval);
       }
 
-      for (const [userId, socketId] of userSockets.entries()) {
+      for (const [uid, socketId] of userSockets.entries()) {
         if (socketId === socket.id) {
-          userSockets.delete(userId);
+          userSockets.delete(uid);
+          
+          // Global Clean-up: Purge any active participation in any room on disconnect
+          try {
+            await (prisma.participant as any).deleteMany({
+              where: { userId: uid }
+            });
+            logger.info(`User ${uid} disconnected. Purged all room memberships.`);
+          } catch (err) {
+            logger.error(`Disconnect cleanup error for user ${uid}: ${err}`);
+          }
           break;
         }
       }

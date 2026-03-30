@@ -43,6 +43,7 @@ export const RoomScreen = () => {
   const [levelUpData, setLevelUpData] = useState<any>(null);
   const [giftAlert, setGiftAlert] = useState<any>(null);
   const [isSpeaker, setIsSpeaker] = useState(false);
+  const [isParticipant, setIsParticipant] = useState(false); // Track if user is in participant list
   const [isRoomLocked, setIsRoomLocked] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -142,14 +143,10 @@ export const RoomScreen = () => {
       setParticipants(data.participants || []);
       setIsRoomLocked(data.isLocked || false);
 
-      const rtcRes = await api.post(`/rooms/${roomId}/join`);
-      if (rtcRes.data.rtcToken) {
-        setupAgora(rtcRes.data.rtcToken);
-      }
-
       // Sync local state with participant data
       const me = data.participants?.find((p: any) => p.userId === user?.id);
       if (me) {
+        setIsParticipant(true);
         if (me.seatIndex !== null) setIsSpeaker(true);
         if (me.isMuted) setIsMuted(true);
       }
@@ -159,7 +156,22 @@ export const RoomScreen = () => {
     } finally {
       setLoading(false);
     }
-  }, [roomId, navigate, setupAgora]);
+  }, [roomId, navigate, setupAgora, user?.id]);
+
+  const handleJoinRoom = async () => {
+    try {
+      const { data } = await api.post(`/rooms/${roomId}/join`);
+      setIsParticipant(true);
+      if (data.rtcToken) {
+        setupAgora(data.rtcToken);
+      }
+      fetchRoomDetails(); // Refresh participants
+      return true;
+    } catch (e) {
+      console.error('Join room failed', e);
+      return false;
+    }
+  };
 
   useEffect(() => {
     fetchRoomDetails();
@@ -397,7 +409,7 @@ export const RoomScreen = () => {
                  return (
                     <div key={i} className="flex flex-col items-center gap-4 group relative">
                        <div 
-                          onClick={() => {
+                          onClick={async () => {
                             if (p) {
                               if (user?.id === room.hostId && p.userId !== user?.id) {
                                 setAdminMenuParticipant(p);
@@ -405,11 +417,19 @@ export const RoomScreen = () => {
                                 setSelectedRecipientId(p.userId);
                                 setIsGiftModalOpen(true);
                               }
-                            } else if (user?.id === room.hostId) {
-                              const event = isLocked ? 'unlock-seat' : 'lock-seat';
-                              socketRef.current?.emit(event, { roomId, seatIndex: i });
-                            } else if (!isLocked) {
-                              socketRef.current?.emit('join-seat', { roomId, seatIndex: i });
+                            } else {
+                              // If not a participant yet, join the room first
+                              if (!isParticipant) {
+                                const ok = await handleJoinRoom();
+                                if (!ok) return;
+                              }
+
+                              if (user?.id === room.hostId) {
+                                const event = isLocked ? 'unlock-seat' : 'lock-seat';
+                                socketRef.current?.emit(event, { roomId, seatIndex: i });
+                              } else if (!isLocked) {
+                                socketRef.current?.emit('join-seat', { roomId, seatIndex: i });
+                              }
                             }
                           }}
                           className={`w-20 h-20 rounded-[2rem] border-2 border-white/5 bg-white/2 hover:border-indigo-500/30 transition-all flex items-center justify-center overflow-hidden relative ${(!p && (user?.id === room.hostId || !isLocked)) || p ? 'cursor-pointer' : ''}`}
