@@ -170,8 +170,8 @@ export const RoomScreen = () => {
       fetchRoomDetails();
     });
 
-    socketRef.current.on('new-gift-alert', (data: any) => {
-      setGiftAlert(data);
+    socketRef.current.on('new-gift-alert', (_data: any) => {
+      setGiftAlert(_data);
       setTimeout(() => setGiftAlert(null), 3000);
     });
 

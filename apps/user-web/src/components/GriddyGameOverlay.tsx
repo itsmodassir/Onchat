@@ -11,7 +11,7 @@ interface GriddyGameOverlayProps {
 
 const BET_AMOUNTS = [10, 50, 100, 500];
 
-export const GriddyGameOverlay: React.FC<GriddyGameOverlayProps> = ({ isOpen, onClose, roomId }) => {
+export const GriddyGameOverlay: React.FC<GriddyGameOverlayProps> = ({ isOpen, onClose, roomId: _roomId }) => {
   const [betAmount, setBetAmount] = useState(10);
   const [isPlaying, setIsPlaying] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -206,7 +206,7 @@ export const GriddyGameOverlay: React.FC<GriddyGameOverlayProps> = ({ isOpen, on
                </div>
                
                <div className="flex-1 overflow-y-auto space-y-4 scrollbar-none pr-2">
-                  {history.map((record: any, idx) => (
+                  {history.map((record: any) => (
                     <div key={record.id} className="flex items-center gap-4 bg-white/5 p-3 rounded-2xl border border-white/5">
                        <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-800 flex-shrink-0">
                           <img src={record.user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${record.userId}`} className="w-full h-full object-cover" />
