@@ -36,6 +36,31 @@ export const adminService = {
     });
   },
 
+  async updateUser(userId: string, data: any) {
+    return await prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: data.name,
+        email: data.email,
+        bio: data.bio,
+        shortId: data.shortId
+      }
+    });
+  },
+
+  async deleteUser(userId: string) {
+    return await prisma.user.delete({
+      where: { id: userId }
+    });
+  },
+
+  async toggleUserBan(userId: string, isBanned: boolean) {
+    return await prisma.user.update({
+      where: { id: userId },
+      data: { isBanned }
+    });
+  },
+
   async getAdminStats() {
     const userCount = await prisma.user.count();
     const roomCount = await prisma.room.count();
@@ -93,5 +118,24 @@ export const adminService = {
       gameLogs,
       financeLogs
     };
+  },
+
+  async getGlobalActivityStream() {
+    const [transactions, gameLogs, reports, participants] = await Promise.all([
+      prisma.transaction.findMany({ take: 20, orderBy: { createdAt: 'desc' }, include: { user: { select: { name: true, shortId: true } } } }),
+      prisma.griddyBet.findMany({ take: 20, orderBy: { createdAt: 'desc' }, include: { user: { select: { name: true, shortId: true } } } }),
+      prisma.report.findMany({ take: 20, orderBy: { createdAt: 'desc' }, include: { reporter: { select: { name: true } }, target: { select: { name: true } } } }),
+      prisma.participant.findMany({ take: 20, orderBy: { createdAt: 'desc' }, include: { user: { select: { name: true, shortId: true } }, room: { select: { title: true } } } })
+    ]);
+
+    // Format all into a unified stream
+    const stream = [
+      ...transactions.map(t => ({ id: t.id, type: 'FINANCE', content: `${t.user.name} processed ${t.amount} assets (${t.type})`, createdAt: t.createdAt })),
+      ...gameLogs.map(g => ({ id: g.id, type: 'GAME', content: `${g.user.name} bet ${g.amount} coins and ${g.won ? 'WON' : 'LOST'}`, createdAt: g.createdAt })),
+      ...reports.map(r => ({ id: r.id, type: 'MODERATION', content: `${r.reporter.name} reported ${r.target.name}: ${r.reason}`, createdAt: r.createdAt })),
+      ...participants.map(p => ({ id: p.id, type: 'SOCIAL', content: `${p.user.name} joined room: ${p.room.title}`, createdAt: p.createdAt }))
+    ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+    return stream;
   }
 };

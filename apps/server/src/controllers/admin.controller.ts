@@ -71,4 +71,48 @@ export const adminController = {
       res.status(500).json({ error: 'Internal server error' });
     }
   },
+
+  async updateUser(req: Request, res: Response) {
+    try {
+      const { userId } = req.params;
+      const user = await adminService.updateUser(userId, req.body);
+      res.json(user);
+    } catch (error: any) {
+      logger.error('ADMIN_UPDATE_USER_ERROR:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+
+  async deleteUser(req: Request, res: Response) {
+    try {
+      const { userId } = req.params;
+      await adminService.deleteUser(userId);
+      res.json({ success: true });
+    } catch (error: any) {
+      logger.error('ADMIN_DELETE_USER_ERROR:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+
+  async banUser(req: Request, res: Response) {
+    try {
+      const { userId } = req.params;
+      const { isBanned } = req.body;
+      const user = await adminService.toggleUserBan(userId, isBanned);
+      res.json(user);
+    } catch (error: any) {
+      logger.error('ADMIN_BAN_USER_ERROR:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+
+  async getActivityStream(req: Request, res: Response) {
+    try {
+      const stream = await adminService.getGlobalActivityStream();
+      res.json(stream);
+    } catch (error: any) {
+      logger.error('ADMIN_GET_ACTIVITY_STREAM_ERROR:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
 };

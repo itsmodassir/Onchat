@@ -13,6 +13,8 @@ interface User {
   diamonds: number;
   crystals: number;
   isReseller?: boolean;
+  isBanned?: boolean;
+  bio?: string;
 }
 
 interface Stats {
@@ -29,6 +31,13 @@ interface DetailedAnalytics {
   cpCouples: any[];
   gameLogs: any[];
   financeLogs: any[];
+}
+
+interface ActivityEvent {
+  id: string;
+  type: 'FINANCE' | 'GAME' | 'MODERATION' | 'SOCIAL';
+  content: string;
+  createdAt: string;
 }
 
 const PACKAGES = [
@@ -81,6 +90,30 @@ const GameIcon = ({ className }: { className?: string }) => (
 const FinanceIcon = ({ className }: { className?: string }) => (
   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
+const ActivityIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+  </svg>
+);
+
+const EditIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+  </svg>
+);
+
+const BanIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+  </svg>
+);
+
+const TrashIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
   </svg>
 );
 
@@ -193,6 +226,48 @@ const MenuItem = ({ icon: Icon, label, active, onClick }: any) => (
   </button>
 );
 
+const UserEditModal = ({ user, token, onClose, onSuccess }: { user: User; token: string; onClose: () => void; onSuccess: () => void }) => {
+  const [formData, setFormData] = useState({ name: user.name, email: user.email, shortId: user.shortId, bio: user.bio || '' });
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch(`https://api.onchat.fun/api/admin/users/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(formData)
+      });
+      if (res.ok) { onSuccess(); onClose(); }
+      else alert('Update Rejected');
+    } catch (e) { alert('Network Rejection'); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-8 bg-slate-950/40 backdrop-blur-2xl animate-in fade-in">
+      <div className="bg-white rounded-[4rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-white/50">
+        <div className="p-14">
+          <div className="flex justify-between items-center mb-10">
+            <h3 className="text-3xl font-black">Identity Calibration</h3>
+            <button onClick={onClose} className="p-4 hover:bg-slate-100 rounded-2xl transition-all"><XIcon className="w-6 h-6" /></button>
+          </div>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Name</label><input className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 font-bold" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></div>
+              <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">ShortID</label><input className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 font-bold" value={formData.shortId} onChange={e => setFormData({...formData, shortId: e.target.value})} /></div>
+            </div>
+            <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Email Vector</label><input className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 font-bold" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} /></div>
+            <div className="space-y-2"><label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Identity Bio</label><textarea rows={3} className="w-full bg-slate-50 border-none rounded-2xl py-4 px-6 font-bold" value={formData.bio} onChange={e => setFormData({...formData, bio: e.target.value})} /></div>
+            <button disabled={loading} className="w-full bg-indigo-600 text-white font-black py-5 rounded-2xl uppercase tracking-widest text-xs hover:bg-slate-950 transition-all">{loading ? 'SYNCHRONIZING...' : 'ESTABLISH CHANGES'}</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const CoinSellerModal = ({ user, token, onClose, onSuccess }: { user: User; token: string; onClose: () => void; onSuccess: () => void }) => {
   const [loading, setLoading] = useState(false);
   const [customVal, setCustomVal] = useState('');
@@ -246,23 +321,27 @@ const App = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [stats, setStats] = useState<Stats>({ userCount: 0, roomCount: 0, familyCount: 0, agencyCount: 0, coupleCount: 0, totalRevenue: 0 });
   const [analytics, setAnalytics] = useState<DetailedAnalytics | null>(null);
+  const [activity, setActivity] = useState<ActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUserForCoins, setSelectedUserForCoins] = useState<User | null>(null);
+  const [selectedUserForEdit, setSelectedUserForEdit] = useState<User | null>(null);
 
   const fetchData = async () => {
     if (!token) return;
     setLoading(true);
     try {
       const headers = { 'Authorization': `Bearer ${token}` };
-      const [uRes, sRes, aRes] = await Promise.all([
+      const [uRes, sRes, aRes, actRes] = await Promise.all([
         fetch('https://api.onchat.fun/api/admin/users', { headers }),
         fetch('https://api.onchat.fun/api/admin/stats', { headers }),
         fetch('https://api.onchat.fun/api/admin/analytics/detailed', { headers }),
+        fetch('https://api.onchat.fun/api/admin/activity/stream', { headers }),
       ]);
       if (uRes.ok) setUsers(await uRes.json());
       if (sRes.ok) setStats(await sRes.json());
       if (aRes.ok) setAnalytics(await aRes.json());
+      if (actRes.ok) setActivity(await actRes.json());
     } catch (e) {
       console.error('Handshake Timeout');
     } finally {
@@ -272,11 +351,37 @@ const App = () => {
 
   useEffect(() => {
     fetchData();
+    const interval = setInterval(fetchData, 30000); // 30s auto-refresh for activity
+    return () => clearInterval(interval);
   }, [token]);
 
   if (!token) return <Login onLogin={setToken} />;
 
   const logout = () => { localStorage.removeItem('adminToken'); setToken(null); };
+
+  const handleBan = async (userId: string, isBanned: boolean) => {
+    if (!confirm(`${isBanned ? 'Authorize identity suspension' : 'Resume authorization'} for candidate?`)) return;
+    try {
+      const res = await fetch(`https://api.onchat.fun/api/admin/users/${userId}/ban`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ isBanned })
+      });
+      if (res.ok) fetchData();
+    } catch (e) { alert('Ban protocol failure'); }
+  };
+
+  const handleDelete = async (userId: string) => {
+    if (!confirm('EXTREME WARNING: This will permanently purge the user record. This action is IRREVERSIBLE. Proceed?')) return;
+    try {
+      const res = await fetch(`https://api.onchat.fun/api/admin/users/${userId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) fetchData();
+    } catch (e) { alert('Purge protocol failure'); }
+  }
+
   const filteredUsers = users.filter(u => u.name?.toLowerCase().includes(searchTerm.toLowerCase()) || u.shortId?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   const renderStats = () => (
@@ -306,23 +411,33 @@ const App = () => {
   );
 
   const renderUsers = () => (
-    <div className="bg-white rounded-[3.5rem] border border-slate-200/40 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-[3.5rem] border border-slate-200/40 shadow-sm overflow-hidden text-slate-900">
       <div className="px-12 py-10 border-b border-slate-50 flex justify-between items-center">
         <div><h2 className="text-3xl font-black text-slate-950">Identity Directory</h2><p className="text-[10px] font-black text-slate-400 uppercase mt-1">Full Cluster Sync</p></div>
         <div className="px-6 py-3 bg-slate-950 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest">{filteredUsers.length} Results</div>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-left">
-          <thead className="bg-slate-50/50"><tr><th className="px-12 py-8 text-[11px] font-black text-slate-300 uppercase">Entity</th><th className="px-12 py-8 text-[11px] font-black text-slate-300 uppercase">Assets</th><th className="px-12 py-8 text-[11px] font-black text-slate-300 uppercase text-right">Command</th></tr></thead>
+          <thead className="bg-slate-50/50"><tr><th className="px-12 py-8 text-[11px] font-black text-slate-300 uppercase">Entity</th><th className="px-12 py-8 text-[11px] font-black text-slate-300 uppercase">Assets</th><th className="px-12 py-8 text-[11px] font-black text-slate-300 uppercase text-right">Command Console</th></tr></thead>
           <tbody className="divide-y divide-slate-50">
             {filteredUsers.map(u => (
               <tr key={u.id} className="hover:bg-indigo-50/20 group">
                 <td className="px-12 py-10 flex items-center gap-8">
-                  <img src={u.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.shortId}`} className="w-20 h-20 rounded-[2rem] border-4 border-slate-100 shadow-xl" />
+                  <div className="relative">
+                    <img src={u.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.shortId}`} className={`w-20 h-20 rounded-[2rem] border-4 border-slate-100 shadow-xl ${u.isBanned ? 'grayscale opacity-50' : ''}`} />
+                    {u.isBanned && <div className="absolute inset-0 flex items-center justify-center bg-red-600/50 rounded-[2rem] text-white text-[8px] font-black uppercase">BANNED</div>}
+                  </div>
                   <div><div className="text-2xl font-black text-slate-950 mb-2">{u.name}</div><div className="text-[10px] font-black bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg border border-indigo-100 uppercase translate-y-[-2px] inline-block">{u.shortId}</div></div>
                 </td>
                 <td className="px-12 py-10"><div className="text-2xl font-black text-indigo-600 tabular-nums">{u.coins.toLocaleString()} <span className="text-[10px] text-slate-300 uppercase ml-2 font-black">Coins</span></div></td>
-                <td className="px-12 py-10 text-right"><button onClick={() => setSelectedUserForCoins(u)} className="bg-indigo-600 text-white text-[11px] font-black px-8 py-4.5 rounded-2xl hover:bg-slate-950 transition-all uppercase tracking-widest shadow-lg shadow-indigo-100">Add Assets</button></td>
+                <td className="px-12 py-10 text-right">
+                  <div className="flex justify-end gap-3 translate-x-2">
+                    <button onClick={() => setSelectedUserForCoins(u)} className="p-4 bg-indigo-600 text-white rounded-2xl hover:bg-slate-950 transition-all shadow-lg shadow-indigo-100" title="Add Assets"><FinanceIcon className="w-5 h-5" /></button>
+                    <button onClick={() => setSelectedUserForEdit(u)} className="p-4 bg-slate-100 text-slate-400 hover:text-indigo-600 rounded-2xl transition-all" title="Edit Identity"><EditIcon className="w-5 h-5" /></button>
+                    <button onClick={() => handleBan(u.id, !u.isBanned)} className={`p-4 rounded-2xl transition-all ${u.isBanned ? 'bg-emerald-500 text-white' : 'bg-amber-100 text-amber-600 hover:bg-amber-500 hover:text-white'}`} title={u.isBanned ? 'Re-Authorize' : 'Ban Identity'}><BanIcon className="w-5 h-5" /></button>
+                    <button onClick={() => handleDelete(u.id)} className="p-4 bg-rose-50 text-rose-300 hover:bg-rose-500 hover:text-white rounded-2xl transition-all" title="Purge Identity"><TrashIcon className="w-5 h-5" /></button>
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -398,6 +513,25 @@ const App = () => {
     </div>
   );
 
+  const renderActivity = () => (
+    <div className="bg-white rounded-[3.5rem] border border-slate-200/40 shadow-sm overflow-hidden">
+      <div className="px-12 py-10 border-b border-slate-50"><h2 className="text-3xl font-black text-slate-950">Neural Activity Stream</h2><p className="text-[10px] font-black text-slate-400 uppercase mt-1">Real-time Platform Pulse</p></div>
+      <div className="divide-y divide-slate-50 max-h-[800px] overflow-y-auto">
+        {activity.map(ev => (
+          <div key={ev.id} className="p-10 hover:bg-slate-50/50 flex items-center gap-10">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black text-[10px] shrink-0 ${
+              ev.type === 'FINANCE' ? 'bg-emerald-50 text-emerald-600' :
+              ev.type === 'GAME' ? 'bg-indigo-50 text-indigo-600' :
+              ev.type === 'MODERATION' ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-600'
+            }`}>{ev.type[0]}</div>
+            <div className="flex-1"><p className="text-lg font-black text-slate-950 mb-1">{ev.content}</p><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{new Date(ev.createdAt).toLocaleString()}</p></div>
+            <div className="text-[10px] font-black text-slate-300 uppercase tracking-widest">{ev.type}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
   const renderFinance = () => (
     <div className="bg-white rounded-[3.5rem] border border-slate-200/40 shadow-sm overflow-hidden">
       <div className="px-12 py-10 border-b border-slate-50"><h2 className="text-3xl font-black text-slate-950">Financial Flux</h2><p className="text-[10px] font-black text-slate-400 uppercase mt-1">Asset Pipeline Tracking</p></div>
@@ -426,9 +560,10 @@ const App = () => {
           <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-xl shadow-indigo-200"><ShieldIcon className="text-white w-6 h-6" /></div>
           <div><h1 className="text-2xl font-black text-slate-950 tracking-tighter mb-1">Onchat</h1><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mainnet Node</p></div>
         </div>
-        <nav className="space-y-3 flex-1">
+        <nav className="space-y-3 flex-1 overflow-y-auto pr-2">
           <MenuItem icon={GridIcon} label="Protocol Stats" active={activeTab === 'stats'} onClick={() => setActiveTab('stats')} />
           <MenuItem icon={UserIcon} label="Entity Directory" active={activeTab === 'users'} onClick={() => setActiveTab('users')} />
+          <MenuItem icon={ActivityIcon} label="Neural Activity" active={activeTab === 'activity'} onClick={() => setActiveTab('activity')} />
           <MenuItem icon={AgencyIcon} label="Agency Clusters" active={activeTab === 'agencies'} onClick={() => setActiveTab('agencies')} />
           <MenuItem icon={CPIcon} label="Social Links" active={activeTab === 'cp'} onClick={() => setActiveTab('cp')} />
           <MenuItem icon={GameIcon} label="Griddy Flux" active={activeTab === 'games'} onClick={() => setActiveTab('games')} />
@@ -452,10 +587,11 @@ const App = () => {
         </header>
 
         <div className="p-12 space-y-12">
-          {loading ? <div className="flex justify-center py-24"><div className="w-12 h-12 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin"></div></div> : (
+          {loading && !users.length ? <div className="flex justify-center py-24"><div className="w-12 h-12 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin"></div></div> : (
             <>
               {activeTab === 'stats' && renderStats()}
               {activeTab === 'users' && renderUsers()}
+              {activeTab === 'activity' && renderActivity()}
               {activeTab === 'agencies' && renderAgencies()}
               {activeTab === 'cp' && renderCP()}
               {activeTab === 'games' && renderGames()}
@@ -466,6 +602,7 @@ const App = () => {
       </main>
 
       {selectedUserForCoins && <CoinSellerModal user={selectedUserForCoins} token={token || ''} onClose={() => setSelectedUserForCoins(null)} onSuccess={fetchData} />}
+      {selectedUserForEdit && <UserEditModal user={selectedUserForEdit} token={token || ''} onClose={() => setSelectedUserForEdit(null)} onSuccess={fetchData} />}
     </div>
   );
 };
